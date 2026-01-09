@@ -1,0 +1,37 @@
+import express, { Router } from "express";
+import {
+  authCheckLimiter,
+  authLimiter,
+  normalLimiter,
+} from "../../middlewares/rate-limiter";
+import adminCategoryRoutes from "./admin/category";
+import adminMaterialRoutes from "./admin/material";
+import adminOrderRoutes from "./admin/order";
+import adminPostRoutes from "./admin/post";
+import adminProductRoutes from "./admin/product";
+import adminSettingRoutes from "./admin/setting";
+import adminTypeRoutes from "./admin/type";
+import adminUserRoutes from "./admin/user";
+import authRoutes from "./auth";
+import authCheckRoutes from "./common/auth-check";
+import categoryRoutes from "./common/category";
+import profileRoutes from "./common/profile";
+
+const router: Router = express.Router();
+
+router.use("/auth", authLimiter, authRoutes);
+
+router.use("/admin/users", normalLimiter, adminUserRoutes);
+router.use("/admin/setting", normalLimiter, adminSettingRoutes);
+router.use("/admin/types", normalLimiter, adminTypeRoutes);
+router.use("/admin/materials", normalLimiter, adminMaterialRoutes);
+router.use("/admin/categories", normalLimiter, adminCategoryRoutes);
+router.use("/admin/posts", normalLimiter, adminPostRoutes);
+router.use("/admin/products", normalLimiter, adminProductRoutes);
+router.use("/admin/orders", normalLimiter, adminOrderRoutes);
+
+router.use("/auth-check", authCheckLimiter, authCheckRoutes);
+router.use("/categories", categoryRoutes);
+router.use("/profile", profileRoutes);
+
+export default router;
