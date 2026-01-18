@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { PostStatus, Prisma, Role } from "@prisma/client";
 import { errorCode } from "../../config/error-code";
 import { prisma } from "../lib/prisma";
 import {
@@ -10,20 +10,26 @@ import {
 import { createError, createSlug, ensureUniqueSlug } from "../utils/common";
 import { getFilePath, removeFile } from "../utils/file";
 import { getCategoryById } from "./category.service";
+import { getUserRoleById } from "./user.service";
 
 export const getAllPosts = async ({
   pageSize,
   offset,
   search,
   categorySlug,
+  status,
+  authenticatedUserId,
 }: ListPostsParams) => {
   const whereConditions: Prisma.PostWhereInput[] = [];
+
+  const userId = requireAuthenticatedUserId(authenticatedUserId);
+  const role = await getRoleOrThrow(userId);
 
   if (search) {
     whereConditions.push({
       OR: [
         { title: { contains: search, mode: "insensitive" } },
-        { body: { contains: search, mode: "insensitive" } },
+        { excerpt: { contains: search, mode: "insensitive" } },
         { content: { contains: search, mode: "insensitive" } },
         {
           author: {
@@ -47,6 +53,19 @@ export const getAllPosts = async ({
     if (category) {
       whereConditions.push({ categoryId: category.id });
     }
+  }
+
+  if (status) {
+    const shouldApplyStatus =
+      status !== PostStatus.ARCHIVED || role === Role.ADMIN;
+    if (shouldApplyStatus) {
+      whereConditions.push({ status });
+    }
+  }
+
+  if (role !== Role.ADMIN) {
+    whereConditions.push({ authorId: userId });
+    whereConditions.push({ status: { not: PostStatus.ARCHIVED } });
   }
 
   const where: Prisma.PostWhereInput =
@@ -177,16 +196,14 @@ export const deletePost = async (id: number) => {
 
 // Validation and checking functions that call simple service functions
 
-export const validateAndGetPostBySlug = async (slug: string) => {
-  if (!slug || slug.trim().length === 0) {
-    throw createError({
-      message: "Slug parameter is required.",
-      status: 400,
-      code: errorCode.invalid,
-    });
-  }
-
-  const post = await getPostBySlug(slug);
+export const validateAndGetPostBySlug = async (
+  slug: string,
+  authenticatedUserId?: number
+) => {
+  const normalizedSlug = requireSlug(slug);
+  const userId = requireAuthenticatedUserId(authenticatedUserId);
+  const role = await getRoleOrThrow(userId);
+  const post = await getPostBySlug(normalizedSlug);
 
   if (!post) {
     throw createError({
@@ -196,14 +213,17 @@ export const validateAndGetPostBySlug = async (slug: string) => {
     });
   }
 
+  assertPostReadable(post, role, userId);
+
   return post;
 };
 
 export const validateAndCreatePost = async (params: CreatePostParams) => {
   const {
     title,
+    excerpt,
     content,
-    body,
+    status,
     categoryId,
     imageFilename,
     authenticatedUserId,
@@ -252,12 +272,16 @@ export const validateAndCreatePost = async (params: CreatePostParams) => {
   const slugExists = !!slugOwner;
   const slug = await ensureUniqueSlug(baseSlug, slugExists);
 
+  const normalizedStatus = status ?? PostStatus.DRAFT;
+
   const post = await createPost({
     title: trimmedTitle,
     slug,
+    excerpt: excerpt.trim(),
     content: content.trim(),
-    body: body.trim(),
     image: imageFilename || "",
+    status: normalizedStatus,
+    publishedAt: normalizedStatus === PostStatus.PUBLISHED ? new Date() : null,
     author: {
       connect: { id: authenticatedUserId },
     },
@@ -273,17 +297,20 @@ export const validateAndUpdatePost = async (
   slug: string,
   params: UpdatePostParams
 ) => {
-  const { title, content, body, categoryId, imageFilename } = params;
+  const {
+    title,
+    excerpt,
+    content,
+    status,
+    categoryId,
+    imageFilename,
+    authenticatedUserId,
+  } = params;
 
-  if (!slug || slug.trim().length === 0) {
-    throw createError({
-      message: "Slug parameter is required.",
-      status: 400,
-      code: errorCode.invalid,
-    });
-  }
-
-  const existing = await getPostBySlug(slug);
+  const normalizedSlug = requireSlug(slug);
+  const userId = requireAuthenticatedUserId(authenticatedUserId);
+  const role = await getRoleOrThrow(userId);
+  const existing = await getPostBySlug(normalizedSlug);
   if (!existing) {
     throw createError({
       message: "Post not found.",
@@ -291,6 +318,8 @@ export const validateAndUpdatePost = async (
       code: errorCode.notFound,
     });
   }
+
+  assertPostMutable(existing, role, userId, "Not allowed to update this post.");
 
   const trimmedTitle = title.trim();
 
@@ -332,12 +361,19 @@ export const validateAndUpdatePost = async (
   const updateData: any = {
     title: trimmedTitle,
     slug: newSlug,
+    excerpt: excerpt.trim(),
     content: content.trim(),
-    body: body.trim(),
     category: {
       connect: { id: category.id },
     },
   };
+
+  if (status) {
+    updateData.status = status;
+    if (status === PostStatus.PUBLISHED) {
+      updateData.publishedAt = new Date();
+    }
+  }
 
   if (imageFilename) {
     if (existing.image) {
@@ -357,16 +393,14 @@ export const validateAndUpdatePost = async (
   return post;
 };
 
-export const validateAndDeletePost = async (slug: string) => {
-  if (!slug || slug.trim().length === 0) {
-    throw createError({
-      message: "Slug parameter is required.",
-      status: 400,
-      code: errorCode.invalid,
-    });
-  }
-
-  const existing = await getPostBySlug(slug);
+export const validateAndDeletePost = async (
+  slug: string,
+  authenticatedUserId?: number
+) => {
+  const normalizedSlug = requireSlug(slug);
+  const userId = requireAuthenticatedUserId(authenticatedUserId);
+  const role = await getRoleOrThrow(userId);
+  const existing = await getPostBySlug(normalizedSlug);
   if (!existing) {
     throw createError({
       message: "Post not found.",
@@ -374,6 +408,8 @@ export const validateAndDeletePost = async (slug: string) => {
       code: errorCode.notFound,
     });
   }
+
+  assertPostMutable(existing, role, userId, "Not allowed to delete this post.");
 
   if (existing.image) {
     const imagePath = getFilePath("uploads", "images", "post", existing.image);
@@ -405,10 +441,93 @@ export const parsePostQueryParams = (
       ? query.category.trim()
       : undefined;
 
+  let status: PostStatus | undefined;
+  if (typeof query.status === "string") {
+    const statusValue = query.status.trim();
+    if (Object.values(PostStatus).includes(statusValue as PostStatus)) {
+      status = statusValue as PostStatus;
+    }
+  }
+
   return {
     pageSize,
     offset,
     search,
     categorySlug,
+    status,
   };
+};
+
+const requireSlug = (slug: string) => {
+  if (!slug || slug.trim().length === 0) {
+    throw createError({
+      message: "Slug parameter is required.",
+      status: 400,
+      code: errorCode.invalid,
+    });
+  }
+
+  return slug.trim();
+};
+
+const requireAuthenticatedUserId = (authenticatedUserId?: number) => {
+  if (!authenticatedUserId) {
+    throw createError({
+      message: "User ID is required.",
+      status: 400,
+      code: errorCode.invalid,
+    });
+  }
+
+  return authenticatedUserId;
+};
+
+const getRoleOrThrow = async (authenticatedUserId: number) => {
+  const role = await getUserRoleById(authenticatedUserId);
+  if (!role) {
+    throw createError({
+      message: "User not found.",
+      status: 404,
+      code: errorCode.notFound,
+    });
+  }
+
+  return role;
+};
+
+const assertPostReadable = (
+  post: { authorId: number; status: PostStatus },
+  role: Role,
+  authenticatedUserId: number
+) => {
+  if (role === Role.ADMIN) return;
+
+  const isOwner = post.authorId === authenticatedUserId;
+  const isArchived = post.status === PostStatus.ARCHIVED;
+  if (!isOwner || isArchived) {
+    throw createError({
+      message: "Post not found.",
+      status: 404,
+      code: errorCode.notFound,
+    });
+  }
+};
+
+const assertPostMutable = (
+  post: { authorId: number; status: PostStatus },
+  role: Role,
+  authenticatedUserId: number,
+  message: string
+) => {
+  if (role === Role.ADMIN) return;
+
+  const isOwner = post.authorId === authenticatedUserId;
+  const isArchived = post.status === PostStatus.ARCHIVED;
+  if (!isOwner || isArchived) {
+    throw createError({
+      message,
+      status: 403,
+      code: errorCode.notAllowed,
+    });
+  }
 };

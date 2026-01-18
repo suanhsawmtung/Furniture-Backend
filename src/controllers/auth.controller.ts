@@ -46,8 +46,6 @@ export const register = async (
 
   const { result, otp, token } = await refreshOrCreateOtp(email);
 
-  console.log(otp, token);
-
   res.status(200).json({
     message: `We are sending OTP to ${result.email}`,
     data: {
@@ -337,8 +335,6 @@ export const forgotPassword = async (
 
   const { result, otp, token } = await refreshOrCreateOtp(email);
 
-  console.log(result.email, result.rememberToken, otp, token);
-
   res.status(200).json({
     message: `We are sending OTP to ${result.email}`,
     success: true,
@@ -357,8 +353,6 @@ export const resendOtp = async (
   const email = req.body.email.trim().toLowerCase();
 
   const { result, otp, token } = await refreshOrCreateOtp(email);
-
-  console.log(result.email, result.rememberToken, otp, token);
 
   res.status(200).json({
     message: `We are sending OTP to ${result.email}`,

@@ -2,7 +2,7 @@ import { NextFunction, Response } from "express";
 import jwt from "jsonwebtoken";
 import { errorCode } from "../../config/error-code";
 import { generateJWT } from "../lib/unique-key-generator";
-import { getUserByIdWithSensitive, updateUser } from "../services/user.service";
+import { getUserByIdWithSensitive } from "../services/user.service";
 import { CustomRequest } from "../types/common";
 import { createError } from "../utils/common";
 
@@ -94,31 +94,35 @@ export const isAuthenticated = (
       options: { expiresIn: 60 * 15 },
     });
 
+    res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      secure: process.env.APP_ENV === "production",
+      sameSite: process.env.APP_ENV === "production" ? "none" : "strict",
+      maxAge: 1000 * 60 * 15,
+    });
+
+    // Keep refresh token stable to avoid mismatch on parallel requests.
+    req.userId = user.id;
+
+    /*
+    // Rotate refresh token (commented out to avoid mismatch on parallel requests)
     const newRefreshToken = generateJWT({
       payload: { id: user.id, email: user.email },
       secret: process.env.REFRESH_TOKEN_SECRET_KEY!,
       options: { expiresIn: "30d" },
     });
 
-    const updatedUser = await updateUser(user.id, {
+    await updateUser(user.id, {
       randToken: newRefreshToken,
     });
 
-    res
-      .cookie("accessToken", newAccessToken, {
-        httpOnly: true,
-        secure: process.env.APP_ENV === "production",
-        sameSite: process.env.APP_ENV === "production" ? "none" : "strict",
-        maxAge: 1000 * 60 * 15,
-      })
-      .cookie("refreshToken", newRefreshToken, {
-        httpOnly: true,
-        secure: process.env.APP_ENV === "production",
-        sameSite: process.env.APP_ENV === "production" ? "none" : "strict",
-        maxAge: 1000 * 60 * 60 * 24 * 30,
-      });
-
-    req.userId = updatedUser.id;
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.APP_ENV === "production",
+      sameSite: process.env.APP_ENV === "production" ? "none" : "strict",
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
+    */
 
     next();
   };

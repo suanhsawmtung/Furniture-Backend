@@ -10,6 +10,9 @@ CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'REJECTED', 'ACCEPTED', 'DONE');
 -- CreateEnum
 CREATE TYPE "PaymentStatus" AS ENUM ('UNPAID', 'PAID');
 
+-- CreateEnum
+CREATE TYPE "PostStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'ARCHIVED');
+
 -- CreateTable
 CREATE TABLE "Category" (
     "id" SERIAL NOT NULL,
@@ -60,11 +63,13 @@ CREATE TABLE "Post" (
     "id" SERIAL NOT NULL,
     "title" VARCHAR(255) NOT NULL,
     "slug" VARCHAR(255) NOT NULL,
+    "excerpt" VARCHAR(255),
     "content" TEXT NOT NULL,
-    "body" TEXT NOT NULL,
     "image" TEXT NOT NULL,
     "authorId" INTEGER NOT NULL,
     "categoryId" INTEGER NOT NULL,
+    "status" "PostStatus" NOT NULL DEFAULT 'DRAFT',
+    "publishedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

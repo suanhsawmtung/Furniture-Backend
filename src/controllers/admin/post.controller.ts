@@ -1,3 +1,4 @@
+import { PostStatus } from "@prisma/client";
 import { NextFunction, Response } from "express";
 import { errorCode } from "../../../config/error-code";
 import {
@@ -25,7 +26,10 @@ export const getAllPostsController = async (
       currentPage,
       totalPages,
       pageSize,
-    } = await getAllPosts(queryParams);
+    } = await getAllPosts({
+      ...queryParams,
+      ...(req.userId ? { authenticatedUserId: req.userId } : {}),
+    });
 
     res.status(200).json({
       success: true,
@@ -59,7 +63,7 @@ export const getPostBySlugController = async (
       return next(error);
     }
 
-    const post = await validateAndGetPostBySlug(slug);
+    const post = await validateAndGetPostBySlug(slug, req.userId);
 
     res.status(200).json({
       success: true,
@@ -77,26 +81,17 @@ export const createPostController = async (
   next: NextFunction
 ) => {
   try {
-    const { title, content, body, categoryId } = req.body;
+    const { title, excerpt, content, categoryId } = req.body;
     const file = (req as any).file as Express.Multer.File | undefined;
-
-    if (!req.userId) {
-      await cleanupUploadedFiles(req);
-      const error = createError({
-        message: "User ID is required.",
-        status: 400,
-        code: errorCode.invalid,
-      });
-      return next(error);
-    }
 
     const post = await validateAndCreatePost({
       title,
+      excerpt,
       content,
-      body,
+      status: PostStatus.DRAFT,
       categoryId,
       ...(file?.filename && { imageFilename: file.filename }),
-      authenticatedUserId: req.userId,
+      ...(req.userId ? { authenticatedUserId: req.userId } : {}),
     });
 
     (req as any).uploadedFiles = [];
@@ -119,7 +114,7 @@ export const updatePostController = async (
 ) => {
   try {
     const { slug } = req.params;
-    const { title, content, body, categoryId } = req.body;
+    const { title, excerpt, content, status, categoryId } = req.body;
     const file = (req as any).file as Express.Multer.File | undefined;
 
     if (!slug) {
@@ -134,10 +129,12 @@ export const updatePostController = async (
 
     const post = await validateAndUpdatePost(slug, {
       title,
+      excerpt,
       content,
-      body,
+      status,
       categoryId,
       ...(file?.filename && { imageFilename: file.filename }),
+      ...(req.userId ? { authenticatedUserId: req.userId } : {}),
     });
 
     (req as any).uploadedFiles = [];
@@ -170,7 +167,7 @@ export const deletePostController = async (
       return next(error);
     }
 
-    await validateAndDeletePost(slug);
+    await validateAndDeletePost(slug, req.userId);
 
     res.status(200).json({
       success: true,

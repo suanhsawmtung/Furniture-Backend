@@ -64,6 +64,8 @@ const createMulterMiddleware = (
         const file = (req as any).file as Express.Multer.File;
         if (file) {
           trackUploadedFile(req, file.filename, subDir);
+        } else {
+          console.log("uploadPostImage file: none");
         }
       }
       next();
@@ -120,6 +122,7 @@ export const handleMulterError = (
         status: 400,
         code: errorCode.invalid,
       });
+
       return next(error);
     }
     // File filter error or other errors
@@ -128,6 +131,7 @@ export const handleMulterError = (
       status: 400,
       code: errorCode.invalid,
     });
+
     return next(error);
   }
   next();
