@@ -2,7 +2,7 @@ import { NextFunction, Response } from "express";
 import jwt from "jsonwebtoken";
 import { errorCode } from "../../config/error-code";
 import { generateJWT } from "../lib/unique-key-generator";
-import { getUserByIdWithSensitive } from "../services/user.service";
+import { findUserByIdWithSensitive } from "../services/user/user.helpers";
 import { CustomRequest } from "../types/common";
 import { createError } from "../utils/common";
 
@@ -66,7 +66,7 @@ export const isAuthenticated = (
       return next(error);
     }
 
-    const user = await getUserByIdWithSensitive(decoded.id);
+    const user = await findUserByIdWithSensitive(decoded.id);
 
     if (!user) {
       const error = createError({
@@ -185,7 +185,7 @@ export const ensureUnauthenticated = async (
     ) as { id: number; email: string };
 
     if (!isNaN(decoded.id)) {
-      const user = await getUserByIdWithSensitive(decoded.id);
+      const user = await findUserByIdWithSensitive(decoded.id);
 
       // If user exists and token matches, user is authenticated
       if (

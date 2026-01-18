@@ -10,7 +10,7 @@ import {
 } from "../types/order";
 import { createError } from "../utils/common";
 import { getProductById } from "./product.service";
-import { getUserById } from "./user.service";
+import { findUserById } from "./user/user.helpers";
 
 export const getAllOrders = async ({
   pageSize,
@@ -321,7 +321,7 @@ export const validateAndCreateOrder = async (params: CreateOrderParams) => {
       });
     }
 
-    const user = await getUserById(userIdNum);
+    const user = await findUserById(userIdNum);
     if (!user) {
       throw createError({
         message: "User not found.",
@@ -497,7 +497,7 @@ export const validateAndUpdateOrder = async (
       });
     }
 
-    const user = await getUserById(userIdNum);
+    const user = await findUserById(userIdNum);
     if (!user) {
       throw createError({
         message: "User not found.",

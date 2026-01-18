@@ -1,11 +1,11 @@
 import { Role } from "@prisma/client";
 import express, { Router } from "express";
 import {
-  createCategoryController,
-  deleteCategoryController,
-  getAllCategoriesController,
-  getCategoryBySlugController,
-  updateCategoryController,
+  createCategory,
+  deleteCategory,
+  getCategory,
+  listCategories,
+  updateCategory,
 } from "../../../../controllers/admin/category.controller";
 import { permit } from "../../../../middlewares/check-permissions";
 import { isAuthenticated } from "../../../../middlewares/ensure-authenticated";
@@ -18,14 +18,14 @@ router.get(
   "/",
   isAuthenticated,
   permit(true, Role.ADMIN, Role.AUTHOR),
-  getAllCategoriesController
+  listCategories
 );
 
 router.get(
   "/:slug",
   isAuthenticated,
   permit(true, Role.ADMIN, Role.AUTHOR),
-  getCategoryBySlugController
+  getCategory
 );
 
 router.post(
@@ -34,7 +34,7 @@ router.post(
   permit(true, Role.ADMIN, Role.AUTHOR),
   categoryNameValidation,
   handleValidationError,
-  createCategoryController
+  createCategory
 );
 
 router.patch(
@@ -43,14 +43,14 @@ router.patch(
   permit(true, Role.ADMIN, Role.AUTHOR),
   categoryNameValidation,
   handleValidationError,
-  updateCategoryController
+  updateCategory
 );
 
 router.delete(
   "/:slug",
   isAuthenticated,
   permit(true, Role.ADMIN, Role.AUTHOR),
-  deleteCategoryController
+  deleteCategory
 );
 
 export default router;

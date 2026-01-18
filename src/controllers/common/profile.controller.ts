@@ -1,7 +1,7 @@
 import { NextFunction, Response } from "express";
 import { throwIfUserNotExistsWithoutSensitive } from "../../services/auth.service";
 import { fileUploadError } from "../../services/file.service";
-import { getUserById, updateUser } from "../../services/user.service";
+import { findUserById, updateUserRecord } from "../../services/user/user.helpers";
 import { CustomRequest } from "../../types/common";
 import { getFilePath, removeFile } from "../../utils/file";
 
@@ -12,7 +12,7 @@ export const uploadProfile = async (
 ) => {
   const userId = req.userId;
   const user = throwIfUserNotExistsWithoutSensitive(
-    userId ? await getUserById(userId) : null
+    userId ? await findUserById(userId) : null
   );
 
   const file = req.file;
@@ -24,7 +24,7 @@ export const uploadProfile = async (
     removeFile(filePath);
   }
 
-  await updateUser(user.id, {
+  await updateUserRecord(user.id, {
     image: file.filename,
   });
 

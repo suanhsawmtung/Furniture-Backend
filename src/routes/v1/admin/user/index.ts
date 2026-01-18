@@ -1,17 +1,17 @@
 import { Role } from "@prisma/client";
 import express, { Router } from "express";
 import {
-  createUserController,
-  deleteUserController,
-  getAllUsersController,
-  getUserByIdController,
-  getUserByUsernameController,
-  updateUserController,
-  updateUserRoleController,
-  updateUserStatusController,
+  createUser,
+  deleteUser,
+  getUser,
+  listUsers,
+  updateUser,
+  updateUserRole,
+  updateUserStatus,
 } from "../../../../controllers/admin/user.controller";
 import { permit } from "../../../../middlewares/check-permissions";
 import { isAuthenticated } from "../../../../middlewares/ensure-authenticated";
+import { ensureNotSelfUser } from "../../../../middlewares/ensure-not-self-user";
 import { handleValidationError } from "../../../../middlewares/error-handler";
 import {
   createUserValidation,
@@ -26,7 +26,7 @@ router.get(
   "/",
   isAuthenticated,
   permit(true, Role.ADMIN),
-  getAllUsersController
+  listUsers
 );
 
 router.post(
@@ -35,55 +35,60 @@ router.post(
   permit(true, Role.ADMIN),
   createUserValidation,
   handleValidationError,
-  createUserController
+  createUser
 );
 
-router.get(
-  "/:id",
-  isAuthenticated,
-  permit(true, Role.ADMIN),
-  getUserByIdController
-);
+// router.get(
+//   "/:id",
+//   isAuthenticated,
+//   permit(true, Role.ADMIN),
+//   getUserById
+// );
 
 router.get(
-  "/username/:username",
+  "/:username",
   isAuthenticated,
   permit(true, Role.ADMIN),
-  getUserByUsernameController
+  ensureNotSelfUser,
+  getUser
 );
 
 router.patch(
   "/:username",
   isAuthenticated,
   permit(true, Role.ADMIN),
+  ensureNotSelfUser,
   updateUserValidation,
   handleValidationError,
-  updateUserController
+  updateUser
 );
 
 router.patch(
   "/:username/role",
   isAuthenticated,
   permit(true, Role.ADMIN),
+  ensureNotSelfUser,
   updateUserRoleValidation,
   handleValidationError,
-  updateUserRoleController
+  updateUserRole
 );
 
 router.patch(
   "/:username/status",
   isAuthenticated,
   permit(true, Role.ADMIN),
+  ensureNotSelfUser,
   updateUserStatusValidation,
   handleValidationError,
-  updateUserStatusController
+  updateUserStatus
 );
 
 router.delete(
   "/:username",
   isAuthenticated,
   permit(true, Role.ADMIN),
-  deleteUserController
+  ensureNotSelfUser,
+  deleteUser
 );
 
 export default router;

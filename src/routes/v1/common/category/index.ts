@@ -1,8 +1,8 @@
 import express, { Router } from "express";
-import { getAllCategoriesController } from "../../../../controllers/common/category.controller";
+import { listPublicCategories } from "../../../../controllers/common/category.controller";
 
 const router: Router = express.Router();
 
-router.get("/", getAllCategoriesController);
+router.get("/", listPublicCategories);
 
 export default router;

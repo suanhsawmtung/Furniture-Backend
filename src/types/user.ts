@@ -3,10 +3,13 @@ import { Role, Status } from "@prisma/client";
 export type ListUsersParams = {
   pageSize: number;
   offset: number;
+  authenticatedUserId?: number;
   search?: string | undefined;
   role?: Role | undefined;
   status?: Status | undefined;
 };
+
+export type BuildUserWhereParams = Omit<ListUsersParams, "pageSize" | "offset">;
 
 export type CreateUserParams = {
   firstName?: string;

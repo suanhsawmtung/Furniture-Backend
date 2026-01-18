@@ -1,11 +1,11 @@
 import { Role } from "@prisma/client";
 import express, { Router } from "express";
 import {
-  createPostController,
-  deletePostController,
-  getAllPostsController,
-  getPostBySlugController,
-  updatePostController,
+  createPost,
+  deletePost,
+  getPost,
+  listPosts,
+  updatePost
 } from "../../../../controllers/admin/post.controller";
 import { permit } from "../../../../middlewares/check-permissions";
 import { isAuthenticated } from "../../../../middlewares/ensure-authenticated";
@@ -25,7 +25,7 @@ router.get(
   "/",
   isAuthenticated,
   permit(true, Role.ADMIN, Role.AUTHOR),
-  getAllPostsController
+  listPosts
 );
 
 router.post(
@@ -36,14 +36,14 @@ router.post(
   handleMulterError,
   createPostValidation,
   handleValidationError,
-  createPostController
+  createPost
 );
 
 router.get(
   "/:slug",
   isAuthenticated,
   permit(true, Role.ADMIN, Role.AUTHOR),
-  getPostBySlugController
+  getPost
 );
 
 router.patch(
@@ -54,14 +54,14 @@ router.patch(
   handleMulterError,
   updatePostValidation,
   handleValidationError,
-  updatePostController
+  updatePost
 );
 
 router.delete(
   "/:slug",
   isAuthenticated,
   permit(true, Role.ADMIN, Role.AUTHOR),
-  deletePostController
+  deletePost
 );
 
 export default router;

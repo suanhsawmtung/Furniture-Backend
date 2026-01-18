@@ -1,14 +1,14 @@
 import { NextFunction, Response } from "express";
-import { getAllCategoriesSimple } from "../../services/category.service";
+import { listPublicCategories as listPublicCategoriesService } from "../../services/category/category.service";
 import { CustomRequest } from "../../types/common";
 
-export const getAllCategoriesController = async (
+export const listPublicCategories = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const categories = await getAllCategoriesSimple();
+    const categories = await listPublicCategoriesService();
 
     res.status(200).json({
       success: true,

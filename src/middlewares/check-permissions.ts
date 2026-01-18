@@ -2,7 +2,7 @@ import { Role } from "@prisma/client";
 import { NextFunction, Response } from "express";
 import { errorCode } from "../../config/error-code";
 import { throwIfUserNotExistsWithoutSensitive } from "../services/auth.service";
-import { getUserById, getUserRoleById } from "../services/user.service";
+import { findUserById, findUserRoleById } from "../services/user/user.helpers";
 import { CustomRequest } from "../types/common";
 import { throwIfUnauthenticated } from "../utils/auth";
 import { createError } from "../utils/common";
@@ -14,9 +14,9 @@ export const permit = (permissions: boolean, ...roles: Role[]) => {
       return;
     }
 
-    throwIfUserNotExistsWithoutSensitive(await getUserById(req.userId));
+    throwIfUserNotExistsWithoutSensitive(await findUserById(req.userId));
 
-    const userRole = await getUserRoleById(req.userId);
+    const userRole = await findUserRoleById(req.userId);
 
     const result = userRole ? roles.includes(userRole) : false;
 

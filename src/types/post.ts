@@ -9,6 +9,8 @@ export type ListPostsParams = {
   status?: PostStatus | undefined;
 };
 
+export type BuildPostWhereParams = Omit<ListPostsParams, "pageSize" | "offset">;
+
 export type CreatePostParams = {
   title: string;
   excerpt: string;

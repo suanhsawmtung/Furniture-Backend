@@ -1,17 +1,11 @@
 import { NextFunction, Response } from "express";
 import { errorCode } from "../../../config/error-code";
-import {
-  getAllCategories,
-  parseCategoryQueryParams,
-  validateAndCreateCategory,
-  validateAndDeleteCategory,
-  validateAndGetCategoryBySlug,
-  validateAndUpdateCategory,
-} from "../../services/category.service";
+import { parseCategoryQueryParams } from "../../services/category/category.helpers";
+import * as CategoryService from "../../services/category/category.service";
 import { CustomRequest } from "../../types/common";
 import { createError } from "../../utils/common";
 
-export const getAllCategoriesController = async (
+export const listCategories = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -24,7 +18,7 @@ export const getAllCategoriesController = async (
       currentPage,
       totalPages,
       pageSize,
-    } = await getAllCategories(queryParams);
+    } = await CategoryService.listCategories(queryParams);
 
     res.status(200).json({
       success: true,
@@ -41,7 +35,7 @@ export const getAllCategoriesController = async (
   }
 };
 
-export const getCategoryBySlugController = async (
+export const getCategory = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -58,7 +52,7 @@ export const getCategoryBySlugController = async (
       return next(error);
     }
 
-    const category = await validateAndGetCategoryBySlug(slug);
+    const category = await CategoryService.getCategoryDetail(slug);
 
     res.status(200).json({
       success: true,
@@ -70,7 +64,7 @@ export const getCategoryBySlugController = async (
   }
 };
 
-export const createCategoryController = async (
+export const createCategory = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -78,7 +72,7 @@ export const createCategoryController = async (
   try {
     const { name } = req.body;
 
-    const category = await validateAndCreateCategory({ name });
+    const category = await CategoryService.createCategory({ name });
 
     res.status(201).json({
       success: true,
@@ -90,7 +84,7 @@ export const createCategoryController = async (
   }
 };
 
-export const updateCategoryController = async (
+export const updateCategory = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -108,7 +102,7 @@ export const updateCategoryController = async (
       return next(error);
     }
 
-    const category = await validateAndUpdateCategory(slug, {
+    const category = await CategoryService.updateCategory(slug, {
       name,
     });
 
@@ -122,7 +116,7 @@ export const updateCategoryController = async (
   }
 };
 
-export const deleteCategoryController = async (
+export const deleteCategory = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -139,7 +133,7 @@ export const deleteCategoryController = async (
       return next(error);
     }
 
-    await validateAndDeleteCategory(slug);
+    await CategoryService.deleteCategory(slug);
 
     res.status(200).json({
       success: true,

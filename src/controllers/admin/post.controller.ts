@@ -1,19 +1,13 @@
 import { PostStatus } from "@prisma/client";
 import { NextFunction, Response } from "express";
 import { errorCode } from "../../../config/error-code";
-import {
-  getAllPosts,
-  parsePostQueryParams,
-  validateAndCreatePost,
-  validateAndDeletePost,
-  validateAndGetPostBySlug,
-  validateAndUpdatePost,
-} from "../../services/post.service";
+import { parsePostQueryParams } from "../../services/post/post.helpers";
+import * as PostService from "../../services/post/post.service";
 import { CustomRequest } from "../../types/common";
 import { createError } from "../../utils/common";
 import { cleanupUploadedFiles } from "../../utils/file-cleanup";
 
-export const getAllPostsController = async (
+export const listPosts = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -26,7 +20,7 @@ export const getAllPostsController = async (
       currentPage,
       totalPages,
       pageSize,
-    } = await getAllPosts({
+    } = await PostService.listPosts({
       ...queryParams,
       ...(req.userId ? { authenticatedUserId: req.userId } : {}),
     });
@@ -46,7 +40,7 @@ export const getAllPostsController = async (
   }
 };
 
-export const getPostBySlugController = async (
+export const getPost = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -63,7 +57,7 @@ export const getPostBySlugController = async (
       return next(error);
     }
 
-    const post = await validateAndGetPostBySlug(slug, req.userId);
+    const post = await PostService.getPostDetail(slug, req.userId);
 
     res.status(200).json({
       success: true,
@@ -75,7 +69,7 @@ export const getPostBySlugController = async (
   }
 };
 
-export const createPostController = async (
+export const createPost = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -84,7 +78,7 @@ export const createPostController = async (
     const { title, excerpt, content, categoryId } = req.body;
     const file = (req as any).file as Express.Multer.File | undefined;
 
-    const post = await validateAndCreatePost({
+    const post = await PostService.createPost({
       title,
       excerpt,
       content,
@@ -107,7 +101,7 @@ export const createPostController = async (
   }
 };
 
-export const updatePostController = async (
+export const updatePost = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -127,7 +121,7 @@ export const updatePostController = async (
       return next(error);
     }
 
-    const post = await validateAndUpdatePost(slug, {
+    const post = await PostService.updatePost(slug, {
       title,
       excerpt,
       content,
@@ -150,7 +144,7 @@ export const updatePostController = async (
   }
 };
 
-export const deletePostController = async (
+export const deletePost = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -167,7 +161,7 @@ export const deletePostController = async (
       return next(error);
     }
 
-    await validateAndDeletePost(slug, req.userId);
+    await PostService.deletePost(slug, req.userId);
 
     res.status(200).json({
       success: true,

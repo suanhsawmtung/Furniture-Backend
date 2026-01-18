@@ -1,20 +1,11 @@
 import { NextFunction, Response } from "express";
 import { errorCode } from "../../../config/error-code";
-import {
-  getAllUsers,
-  parseUserQueryParams,
-  validateAndCreateUser,
-  validateAndDeleteUser,
-  validateAndGetUserById,
-  validateAndGetUserByUsername,
-  validateAndUpdateUser,
-  validateAndUpdateUserRole,
-  validateAndUpdateUserStatus,
-} from "../../services/user.service";
+import { parseUserQueryParams } from "../../services/user/user.helpers";
+import * as UserService from "../../services/user/user.service";
 import { CustomRequest } from "../../types/common";
 import { createError } from "../../utils/common";
 
-export const getAllUsersController = async (
+export const listUsers = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -27,7 +18,10 @@ export const getAllUsersController = async (
       currentPage,
       totalPages,
       pageSize,
-    } = await getAllUsers(queryParams);
+    } = await UserService.listUsers({
+      ...queryParams,
+      ...(req.userId ? { authenticatedUserId: req.userId } : {}),
+    });
 
     res.status(200).json({
       success: true,
@@ -44,37 +38,37 @@ export const getAllUsersController = async (
   }
 };
 
-export const getUserByIdController = async (
-  req: CustomRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { id } = req.params;
+// export const getUserById = async (
+//   req: CustomRequest,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { id } = req.params;
 
-    if (!id) {
-      const error = createError({
-        message: "User ID parameter is required.",
-        status: 400,
-        code: errorCode.invalid,
-      });
-      return next(error);
-    }
+//     if (!id) {
+//       const error = createError({
+//         message: "User ID parameter is required.",
+//         status: 400,
+//         code: errorCode.invalid,
+//       });
+//       return next(error);
+//     }
 
-    const userId = parseInt(id, 10);
-    const user = await validateAndGetUserById(userId);
+//     const userId = parseInt(id, 10);
+//     const user = await UserService.getUserDetail(userId);
 
-    res.status(200).json({
-      success: true,
-      data: { user },
-      message: null,
-    });
-  } catch (error: any) {
-    next(error);
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       data: { user },
+//       message: null,
+//     });
+//   } catch (error: any) {
+//     next(error);
+//   }
+// };
 
-export const getUserByUsernameController = async (
+export const getUser = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -91,7 +85,7 @@ export const getUserByUsernameController = async (
       return next(error);
     }
 
-    const user = await validateAndGetUserByUsername(username);
+    const user = await UserService.getUserDetail(username);
 
     res.status(200).json({
       success: true,
@@ -103,7 +97,7 @@ export const getUserByUsernameController = async (
   }
 };
 
-export const createUserController = async (
+export const createUser = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -111,7 +105,7 @@ export const createUserController = async (
   try {
     const { firstName, lastName, phone, email, role, status } = req.body;
 
-    const user = await validateAndCreateUser({
+    const user = await UserService.createUser({
       firstName,
       lastName,
       phone,
@@ -130,7 +124,7 @@ export const createUserController = async (
   }
 };
 
-export const updateUserController = async (
+export const updateUser = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -149,7 +143,7 @@ export const updateUserController = async (
 
     const { firstName, lastName, phone, email, role, status } = req.body;
 
-    const user = await validateAndUpdateUser(username, {
+    const user = await UserService.updateUser(username, {
       firstName,
       lastName,
       phone,
@@ -168,7 +162,7 @@ export const updateUserController = async (
   }
 };
 
-export const updateUserRoleController = async (
+export const updateUserRole = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -187,7 +181,7 @@ export const updateUserRoleController = async (
 
     const { role } = req.body;
 
-    const user = await validateAndUpdateUserRole(username, {
+    const user = await UserService.updateUserRole(username, {
       role,
     });
 
@@ -201,7 +195,7 @@ export const updateUserRoleController = async (
   }
 };
 
-export const updateUserStatusController = async (
+export const updateUserStatus = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -220,7 +214,7 @@ export const updateUserStatusController = async (
 
     const { status } = req.body;
 
-    const user = await validateAndUpdateUserStatus(username, {
+    const user = await UserService.updateUserStatus(username, {
       status,
     });
 
@@ -234,7 +228,7 @@ export const updateUserStatusController = async (
   }
 };
 
-export const deleteUserController = async (
+export const deleteUser = async (
   req: CustomRequest,
   res: Response,
   next: NextFunction
@@ -251,7 +245,7 @@ export const deleteUserController = async (
       return next(error);
     }
 
-    await validateAndDeleteUser(username);
+    await UserService.deleteUser(username);
 
     res.status(200).json({
       success: true,

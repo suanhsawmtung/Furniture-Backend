@@ -5,7 +5,7 @@ import { prisma } from "../lib/prisma";
 import { generateOTP, generateToken } from "../lib/unique-key-generator";
 import { checkOtpErrorCountLimits, handleExpiredOtp } from "../utils/auth";
 import { createError, isToday } from "../utils/common";
-import { updateUser } from "./user.service";
+import { updateUserRecord } from "./user/user.helpers";
 
 type UserWithoutSensitive = Omit<
   User,
@@ -242,6 +242,6 @@ export const throwIfUserIsFreeze = (user: User) => {
 
 export const reactivateUserIfNotActive = async (user: User) => {
   if (user.status !== "ACTIVE") {
-    await updateUser(user.id, { status: "ACTIVE" });
+    await updateUserRecord(user.id, { status: "ACTIVE" });
   }
 };

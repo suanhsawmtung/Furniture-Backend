@@ -17,14 +17,7 @@ import {
   throwIfUserNotExists,
   updateOtp,
 } from "../services/auth.service";
-import {
-  createUser,
-  generateUsername,
-  getUserByEmail,
-  getUserById,
-  getUserByIdWithSensitive,
-  updateUser,
-} from "../services/user.service";
+import { createUserRecord, findUserByEmail, findUserById, findUserByIdWithSensitive, generateUsername, updateUserRecord } from "../services/user/user.helpers";
 import { CustomRequest } from "../types/common";
 import {
   checkOtpErrorCountLimits,
@@ -41,7 +34,7 @@ export const register = async (
 ) => {
   const email = req.body.email.trim().toLowerCase();
 
-  const user = await getUserByEmail(email);
+  const user = await findUserByEmail(email);
   await throwIfUserExists(user);
 
   const { result, otp, token } = await refreshOrCreateOtp(email);
@@ -64,7 +57,7 @@ export const verifyOtp = async (
   const { email, otp, token } = req.body;
   const normalizedEmail = email.trim().toLowerCase();
 
-  const user = await getUserByEmail(normalizedEmail);
+  const user = await findUserByEmail(normalizedEmail);
   throwIfUserExists(user);
 
   const otpRow = throwIfOtpNotExists(await getOtpByEmail(normalizedEmail));
@@ -107,7 +100,7 @@ export const confirmPassword = async (
   const { email, password, token } = req.body;
   const normalizedEmail = email.trim().toLowerCase();
 
-  const user = await getUserByEmail(normalizedEmail);
+  const user = await findUserByEmail(normalizedEmail);
   await throwIfUserExists(user);
 
   const otpRow = throwIfOtpNotExists(await getOtpByEmail(normalizedEmail));
@@ -127,7 +120,7 @@ export const confirmPassword = async (
   const username = await generateUsername(null, null);
 
   const randToken = generateToken();
-  const newUser = await createUser({
+  const newUser = await createUserRecord({
     email: normalizedEmail,
     username,
     firstName: null,
@@ -149,7 +142,9 @@ export const confirmPassword = async (
     options: { expiresIn: "30d" },
   });
 
-  const updatedUser = await updateUser(newUser.id, { randToken: refreshToken });
+  const updatedUser = await updateUserRecord(newUser.id, {
+    randToken: refreshToken,
+  });
 
   const userData = {
     id: updatedUser.id,
@@ -195,7 +190,7 @@ export const login = async (
   const email = req.body.email.trim().toLowerCase();
   const password = req.body.password;
 
-  const user = throwIfUserNotExists(await getUserByEmail(email));
+  const user = throwIfUserNotExists(await findUserByEmail(email));
 
   const isLastUserUpdatedToday = isToday(user.updatedAt);
 
@@ -209,12 +204,14 @@ export const login = async (
   if (!isMatched) {
     if (isLastUserUpdatedToday) {
       if (user.errorLoginCount >= 3) {
-        await updateUser(user.id, { status: "FREEZE" });
+        await updateUserRecord(user.id, { status: "FREEZE" });
       } else {
-        await updateUser(user.id, { errorLoginCount: { increment: 1 } });
+        await updateUserRecord(user.id, {
+          errorLoginCount: { increment: 1 },
+        });
       }
     } else {
-      await updateUser(user.id, { errorLoginCount: 1 });
+      await updateUserRecord(user.id, { errorLoginCount: 1 });
     }
 
     throwInvalidCredentialsError();
@@ -232,7 +229,7 @@ export const login = async (
     options: { expiresIn: "30d" },
   });
 
-  const updatedUser = await updateUser(user.id, {
+  const updatedUser = await updateUserRecord(user.id, {
     randToken: refreshToken,
     errorLoginCount: 0,
   });
@@ -301,13 +298,13 @@ export const logout = async (
     throwIfUserNotExists(null);
   }
 
-  const user = throwIfUserNotExists(await getUserByIdWithSensitive(decoded.id));
+  const user = throwIfUserNotExists(await findUserByIdWithSensitive(decoded.id));
 
   if (user.randToken !== refreshToken || user.id !== decoded.id) {
     throwIfUnauthenticated();
   }
 
-  await updateUser(user.id, { randToken: generateToken() });
+  await updateUserRecord(user.id, { randToken: generateToken() });
 
   res
     .clearCookie("accessToken", {
@@ -331,7 +328,7 @@ export const forgotPassword = async (
 ) => {
   const email = req.body.email.trim().toLowerCase();
 
-  throwIfUserNotExists(await getUserByEmail(email));
+  throwIfUserNotExists(await findUserByEmail(email));
 
   const { result, otp, token } = await refreshOrCreateOtp(email);
 
@@ -372,7 +369,7 @@ export const verifyPasswordOtp = async (
   const { email, otp, token } = req.body;
   const normalizedEmail = email.trim().toLowerCase();
 
-  throwIfUserNotExists(await getUserByEmail(normalizedEmail));
+  throwIfUserNotExists(await findUserByEmail(normalizedEmail));
 
   const otpRow = throwIfOtpNotExists(await getOtpByEmail(normalizedEmail));
 
@@ -414,7 +411,7 @@ export const resetPassword = async (
   const { email, password, token } = req.body;
   const normalizedEmail = email.trim().toLowerCase();
 
-  const user = throwIfUserNotExists(await getUserByEmail(normalizedEmail));
+  const user = throwIfUserNotExists(await findUserByEmail(normalizedEmail));
 
   const otpRow = throwIfOtpNotExists(await getOtpByEmail(normalizedEmail));
 
@@ -429,7 +426,7 @@ export const resetPassword = async (
   const isExpired = moment().diff(otpRow.updatedAt, "minutes") > 2;
   if (isExpired) await handleExpiredVerifyToken(otpRow);
 
-  await updateUser(user.id, {
+  await updateUserRecord(user.id, {
     password: await hash(password),
   });
 
@@ -455,7 +452,7 @@ export const checkAuth = async (
     });
   }
 
-  const user = await getUserById(userId);
+  const user = await findUserById(userId);
 
   if (!user) {
     return res.status(200).json({
