@@ -9,7 +9,7 @@ import {
   UpdateOrderParams,
 } from "../types/order";
 import { createError } from "../utils/common";
-import { getProductById } from "./product.service";
+import { findProductById } from "./product/product.helpers";
 import { findUserById } from "./user/user.helpers";
 
 export const getAllOrders = async ({
@@ -80,9 +80,9 @@ export const getAllOrders = async ({
         include: {
           product: {
             include: {
-              material: true,
-              type: true,
-              images: true,
+              brand: true,
+              // type: true,
+              // images: true,
             },
           },
         },
@@ -115,9 +115,9 @@ export const getOrderByCode = async (code: string) => {
         include: {
           product: {
             include: {
-              material: true,
-              type: true,
-              images: true,
+              brand: true,
+              // type: true,
+              // images: true,
             },
           },
         },
@@ -143,9 +143,9 @@ export const getOrderById = async (id: number) => {
         include: {
           product: {
             include: {
-              material: true,
-              type: true,
-              images: true,
+              brand: true,
+              // type: true,
+              // images: true,
             },
           },
         },
@@ -183,9 +183,9 @@ export const createOrder = async (createOrderData: Prisma.OrderCreateInput) => {
         include: {
           product: {
             include: {
-              material: true,
-              type: true,
-              images: true,
+              brand: true,
+              // type: true,
+              // images: true,
             },
           },
         },
@@ -215,9 +215,9 @@ export const updateOrder = async (
         include: {
           product: {
             include: {
-              material: true,
-              type: true,
-              images: true,
+              brand: true,
+              // type: true,
+              // images: true,
             },
           },
         },
@@ -363,7 +363,7 @@ export const validateAndCreateOrder = async (params: CreateOrderParams) => {
       });
     }
 
-    const product = await getProductById(productId);
+    const product = await findProductById(productId);
     if (!product) {
       throw createError({
         message: `Product with ID ${productId} not found.`,
@@ -521,7 +521,7 @@ export const validateAndUpdateOrder = async (
         });
       }
 
-      const product = await getProductById(productId);
+      const product = await findProductById(productId);
       if (!product) {
         throw createError({
           message: `Product with ID ${productId} not found.`,

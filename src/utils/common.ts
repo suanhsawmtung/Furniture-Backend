@@ -45,3 +45,12 @@ export const ensureUniqueSlug = async (
   const slug = `${baseSlug}-${randomCode}`;
   return slug;
 };
+
+export const normalizeBoolean = (
+  value: unknown,
+  defaultValue: boolean
+): boolean => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") return value === "true";
+  return defaultValue;
+};

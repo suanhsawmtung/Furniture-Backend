@@ -1,24 +1,29 @@
-import { Prisma, Status } from "@prisma/client";
+import {
+  Concentration,
+  Gender,
+  Prisma
+} from "@prisma/client";
 import { errorCode } from "../../config/error-code";
 import { prisma } from "../lib/prisma";
 import {
   CreateProductParams,
   ListProductsParams,
   ParseProductQueryParamsResult,
-  UpdateProductParams,
+  UpdateProductNewParams
 } from "../types/product";
 import { createError, createSlug, ensureUniqueSlug } from "../utils/common";
-import { getFilePath, removeFile } from "../utils/file";
-import { getMaterialById } from "./material.service";
-import { getTypeById } from "./type.service";
+import { findBrandById } from "./brand/brand.helpers";
+import { findProductDetail } from "./product/product.helpers";
 
 export const getAllProducts = async ({
   pageSize,
   offset,
   search,
-  status,
-  materialSlug,
-  typeSlug,
+  brandSlug,
+  gender,
+  concentration,
+  isActive,
+  isLimited,
 }: ListProductsParams) => {
   const whereConditions: Prisma.ProductWhereInput[] = [];
 
@@ -31,24 +36,28 @@ export const getAllProducts = async ({
     });
   }
 
-  if (status) {
-    whereConditions.push({ status });
-  }
-
-  if (materialSlug) {
+  if (brandSlug) {
     whereConditions.push({
-      material: {
-        slug: materialSlug,
+      brand: {
+        slug: brandSlug,
       },
     });
   }
 
-  if (typeSlug) {
-    whereConditions.push({
-      type: {
-        slug: typeSlug,
-      },
-    });
+  if (gender) {
+    whereConditions.push({ gender });
+  }
+
+  if (concentration) {
+    whereConditions.push({ concentration });
+  }
+
+  if (typeof isActive === "boolean") {
+    whereConditions.push({ isActive });
+  }
+
+  if (typeof isLimited === "boolean") {
+    whereConditions.push({ isLimited });
   }
 
   const where: Prisma.ProductWhereInput =
@@ -73,10 +82,21 @@ export const getAllProducts = async ({
     take: pageSize,
     skip: offset,
     orderBy: { id: "desc" },
-    include: {
-      material: true,
-      type: true,
-      images: true,
+    select: {
+      name: true,
+      slug: true,
+      concentration: true,
+      gender: true,
+      rating: true,
+      isActive: true,
+      brand: {
+        select: { name: true },
+      },
+      _count: {
+        select: {
+          variants: true,
+        },
+      },
     },
   });
 
@@ -92,9 +112,30 @@ export const getProductBySlug = async (slug: string) => {
   return await prisma.product.findUnique({
     where: { slug },
     include: {
-      material: true,
-      type: true,
-      images: true,
+      brand: true,
+      variants: {
+        include: {
+          inventories: true,
+          images: {
+            select: {
+              path: true,
+              isPrimary: true,
+              order: true,
+            },
+            orderBy: {
+              order: "asc",
+            },
+          },
+        },
+      },
+      _count: {
+        select: {
+          wishlists: true,
+          ratings: true,
+          orders: true,
+          variants: true,
+        },
+      },
     },
   });
 };
@@ -123,33 +164,34 @@ export const getProductByNameExcludingId = async (
   });
 };
 
-export const createProduct = async (
-  createProductData: Prisma.ProductCreateInput
-) => {
-  return await prisma.product.create({
-    data: createProductData,
-    include: {
-      material: true,
-      type: true,
-      images: true,
-    },
-  });
-};
+// export const createProduct = async (
+//   createProductData: Prisma.ProductCreateInput
+// ) => {
+//   return await prisma.product.create({
+//     data: createProductData,
+//     include: {
+//       material: true,
+//       type: true,
+//       brand: true,
+//       images: true,
+//     },
+//   });
+// };
 
-export const updateProduct = async (
-  id: number,
-  updateProductData: Prisma.ProductUpdateInput
-) => {
-  return await prisma.product.update({
-    where: { id },
-    data: updateProductData,
-    include: {
-      material: true,
-      type: true,
-      images: true,
-    },
-  });
-};
+// export const updateProduct = async (
+//   id: number,
+//   updateProductData: Prisma.ProductUpdateInput
+// ) => {
+//   return await prisma.product.update({
+//     where: { id },
+//     data: updateProductData,
+//     include: {
+//       material: true,
+//       type: true,
+//       images: true,
+//     },
+//   });
+// };
 
 export const deleteProduct = async (id: number) => {
   return await prisma.product.delete({
@@ -157,20 +199,20 @@ export const deleteProduct = async (id: number) => {
   });
 };
 
-export const getProductImages = async (productId: number) => {
-  return await prisma.image.findMany({
-    where: { productId },
-  });
-};
+// export const getProductImages = async (productId: number) => {
+//   return await prisma.image.findMany({
+//     where: { productId },
+//   });
+// };
 
-export const createProductImage = async (productId: number, path: string) => {
-  return await prisma.image.create({
-    data: {
-      path,
-      productId,
-    },
-  });
-};
+// export const createProductImage = async (productId: number, path: string) => {
+//   return await prisma.image.create({
+//     data: {
+//       path,
+//       productId,
+//     },
+//   });
+// };
 
 export const deleteProductImage = async (id: number) => {
   return await prisma.image.delete({
@@ -178,11 +220,11 @@ export const deleteProductImage = async (id: number) => {
   });
 };
 
-export const deleteProductImages = async (productId: number) => {
-  return await prisma.image.deleteMany({
-    where: { productId },
-  });
-};
+// export const deleteProductImages = async (productId: number) => {
+//   return await prisma.image.deleteMany({
+//     where: { productId },
+//   });
+// };
 
 export const updateProductImage = async (id: number, path: string) => {
   return await prisma.image.update({
@@ -208,7 +250,7 @@ export const validateAndGetProductBySlug = async (slug: string) => {
     });
   }
 
-  const product = await getProductBySlug(slug);
+  const product = await findProductDetail(slug);
 
   if (!product) {
     throw createError({
@@ -221,23 +263,169 @@ export const validateAndGetProductBySlug = async (slug: string) => {
   return product;
 };
 
+// export const validateAndCreateProduct = async (params: CreateProductParams) => {
+//   const {
+//     name,
+//     description,
+//     price,
+//     discount,
+//     inventory,
+//     status,
+//     materialId,
+//     typeId,
+//     brandId,
+//     imageFilenames,
+//   } = params;
+
+//   const trimmedName = name.trim();
+
+//   const existingByName = await getProductByName(trimmedName);
+
+//   if (existingByName) {
+//     throw createError({
+//       message: "Product with this name already exists.",
+//       status: 409,
+//       code: errorCode.alreadyExists,
+//     });
+//   }
+
+//   const materialIdNum = parseInt(String(materialId), 10);
+//   if (isNaN(materialIdNum) || materialIdNum <= 0) {
+//     throw createError({
+//       message: "Invalid material ID.",
+//       status: 400,
+//       code: errorCode.invalid,
+//     });
+//   }
+
+//   const material = await getMaterialById(materialIdNum);
+//   if (!material) {
+//     throw createError({
+//       message: "Material not found.",
+//       status: 404,
+//       code: errorCode.notFound,
+//     });
+//   }
+
+//   const typeIdNum = parseInt(String(typeId), 10);
+//   if (isNaN(typeIdNum) || typeIdNum <= 0) {
+//     throw createError({
+//       message: "Invalid type ID.",
+//       status: 400,
+//       code: errorCode.invalid,
+//     });
+//   }
+
+//   const type = await getTypeById(typeIdNum);
+//   if (!type) {
+//     throw createError({
+//       message: "Type not found.",
+//       status: 404,
+//       code: errorCode.notFound,
+//     });
+//   }
+
+//   const brandIdNum = parseInt(String(brandId), 10);
+//   if (isNaN(brandIdNum) || brandIdNum <= 0) {
+//     throw createError({
+//       message: "Invalid brand ID.",
+//       status: 400,
+//       code: errorCode.invalid,
+//     });
+//   }
+  
+//   const brand = await findBrandById(brandIdNum);
+//   if (!brand) {
+//     throw createError({
+//       message: "Brand not found.",
+//       status: 404,
+//       code: errorCode.notFound,
+//     });
+//   }
+
+//   const baseSlug = createSlug(trimmedName);
+//   const slugOwner = await getProductBySlug(baseSlug);
+//   const slugExists = !!slugOwner;
+//   const slug = await ensureUniqueSlug(baseSlug, slugExists);
+
+//   const product = await createProduct({
+//     name: trimmedName,
+//     slug,
+//     description: description.trim(),
+//     price: parseFloat(String(price)),
+//     discount: discount ? parseFloat(String(discount)) : 0,
+//     inventory: inventory ? parseInt(String(inventory), 10) : 0,
+//     status: status || Status.ACTIVE,
+//     material: {
+//       connect: { id: material.id },
+//     },
+//     type: {
+//       connect: { id: type.id },
+//     },
+//     brand: {
+//       connect: { id: brand.id },
+//     },
+//   });
+
+//   if (imageFilenames && imageFilenames.length > 0) {
+//     for (const imageFilename of imageFilenames) {
+//       await createProductImage(product.id, imageFilename);
+//     }
+//   }
+
+//   const productWithImages = await getProductBySlug(slug);
+
+//   return productWithImages;
+// };
+
 export const validateAndCreateProduct = async (params: CreateProductParams) => {
   const {
     name,
     description,
-    price,
-    discount,
-    inventory,
-    status,
-    materialId,
-    typeId,
-    imageFilenames,
+    concentration,
+    gender,
+    brandId,
+    isActive,
+    isLimited,
+    releasedYear,
   } = params;
 
   const trimmedName = name.trim();
+  const trimmedDescription = description.trim();
+
+  if (!trimmedName) {
+    throw createError({
+      message: "Name is required.",
+      status: 400,
+      code: errorCode.invalid,
+    });
+  }
+
+  if (!trimmedDescription) {
+    throw createError({
+      message: "Description is required.",
+      status: 400,
+      code: errorCode.invalid,
+    });
+  }
+
+  if (!concentration) {
+    throw createError({
+      message: "Concentration is required.",
+      status: 400,
+      code: errorCode.invalid,
+    });
+  }
+
+  if (!gender) {
+    throw createError({
+      message: "Gender is required.",
+      status: 400,
+      code: errorCode.invalid,
+    });
+  }
 
   const existingByName = await getProductByName(trimmedName);
-
   if (existingByName) {
     throw createError({
       message: "Product with this name already exists.",
@@ -246,37 +434,19 @@ export const validateAndCreateProduct = async (params: CreateProductParams) => {
     });
   }
 
-  const materialIdNum = parseInt(String(materialId), 10);
-  if (isNaN(materialIdNum) || materialIdNum <= 0) {
+  const brandIdNum = parseInt(String(brandId), 10);
+  if (isNaN(brandIdNum) || brandIdNum <= 0) {
     throw createError({
-      message: "Invalid material ID.",
+      message: "Invalid brand ID.",
       status: 400,
       code: errorCode.invalid,
     });
   }
 
-  const material = await getMaterialById(materialIdNum);
-  if (!material) {
+  const brand = await findBrandById(brandIdNum);
+  if (!brand) {
     throw createError({
-      message: "Material not found.",
-      status: 404,
-      code: errorCode.notFound,
-    });
-  }
-
-  const typeIdNum = parseInt(String(typeId), 10);
-  if (isNaN(typeIdNum) || typeIdNum <= 0) {
-    throw createError({
-      message: "Invalid type ID.",
-      status: 400,
-      code: errorCode.invalid,
-    });
-  }
-
-  const type = await getTypeById(typeIdNum);
-  if (!type) {
-    throw createError({
-      message: "Type not found.",
+      message: "Brand not found.",
       status: 404,
       code: errorCode.notFound,
     });
@@ -287,48 +457,252 @@ export const validateAndCreateProduct = async (params: CreateProductParams) => {
   const slugExists = !!slugOwner;
   const slug = await ensureUniqueSlug(baseSlug, slugExists);
 
-  const product = await createProduct({
-    name: trimmedName,
-    slug,
-    description: description.trim(),
-    price: parseFloat(String(price)),
-    discount: discount ? parseFloat(String(discount)) : 0,
-    inventory: inventory ? parseInt(String(inventory), 10) : 0,
-    status: status || Status.ACTIVE,
-    material: {
-      connect: { id: material.id },
+  const parsedReleasedYear =
+    releasedYear !== undefined ? Number(releasedYear) : null;
+
+  const product = await prisma.product.create({
+    data: {
+      name: trimmedName,
+      slug,
+      concentration,
+      gender,
+      description: trimmedDescription,
+      isActive: typeof isActive === "boolean" ? isActive : true,
+      isLimited: typeof isLimited === "boolean" ? isLimited : false,
+      releasedYear:
+        parsedReleasedYear !== null && !isNaN(parsedReleasedYear)
+          ? parsedReleasedYear
+          : null,
+      brand: {
+        connect: { id: brand.id },
+      },
     },
-    type: {
-      connect: { id: type.id },
+    include: {
+      brand: true,
     },
   });
 
-  if (imageFilenames && imageFilenames.length > 0) {
-    for (const imageFilename of imageFilenames) {
-      await createProductImage(product.id, imageFilename);
-    }
-  }
-
-  const productWithImages = await getProductBySlug(slug);
-
-  return productWithImages;
+  return product;
 };
+
+// export const validateAndUpdateProduct = async (
+//   slug: string,
+//   params: UpdateProductParams
+// ) => {
+//   const {
+//     name,
+//     description,
+//     price,
+//     discount,
+//     inventory,
+//     status,
+//     materialId,
+//     typeId,
+//     brandId,
+//     imageFilenames,
+//     imageIds,
+//   } = params;
+//
+//   if (!slug || slug.trim().length === 0) {
+//     throw createError({
+//       message: "Slug parameter is required.",
+//       status: 400,
+//       code: errorCode.invalid,
+//     });
+//   }
+//
+//   const existing = await getProductBySlug(slug);
+//   if (!existing) {
+//     throw createError({
+//       message: "Product not found.",
+//       status: 404,
+//       code: errorCode.notFound,
+//     });
+//   }
+//
+//   const trimmedName = name.trim();
+//
+//   const existingByName = await getProductByNameExcludingId(
+//     trimmedName,
+//     existing.id
+//   );
+//   if (existingByName) {
+//     throw createError({
+//       message: "Product with this name already exists.",
+//       status: 409,
+//       code: errorCode.alreadyExists,
+//     });
+//   }
+//
+//   const materialIdNum = parseInt(String(materialId), 10);
+//   if (isNaN(materialIdNum) || materialIdNum <= 0) {
+//     throw createError({
+//       message: "Invalid material ID.",
+//       status: 400,
+//       code: errorCode.invalid,
+//     });
+//   }
+//
+//   const material = await getMaterialById(materialIdNum);
+//   if (!material) {
+//     throw createError({
+//       message: "Material not found.",
+//       status: 404,
+//       code: errorCode.notFound,
+//     });
+//   }
+//
+//   const typeIdNum = parseInt(String(typeId), 10);
+//   if (isNaN(typeIdNum) || typeIdNum <= 0) {
+//     throw createError({
+//       message: "Invalid type ID.",
+//       status: 400,
+//       code: errorCode.invalid,
+//     });
+//   }
+//
+//   const type = await getTypeById(typeIdNum);
+//   if (!type) {
+//     throw createError({
+//       message: "Type not found.",
+//       status: 404,
+//       code: errorCode.notFound,
+//     });
+//   }
+//
+//   const brandIdNum = parseInt(String(brandId), 10);
+//   if (isNaN(brandIdNum) || brandIdNum <= 0) {
+//     throw createError({
+//       message: "Invalid brand ID.",
+//       status: 400,
+//       code: errorCode.invalid,
+//     });
+//   }
+//
+//   const brand = await findBrandById(brandIdNum);
+//   if (!brand) {
+//     throw createError({
+//       message: "Brand not found.",
+//       status: 404,
+//       code: errorCode.notFound,
+//     });
+//   }
+//
+//   const baseSlug = createSlug(trimmedName);
+//   const slugOwner = await getProductBySlug(baseSlug);
+//   const slugExists = slugOwner ? slugOwner.id !== existing.id : false;
+//   const newSlug = await ensureUniqueSlug(baseSlug, slugExists);
+//
+//   const updateData: any = {
+//     name: trimmedName,
+//     slug: newSlug,
+//     description: description.trim(),
+//     price: parseFloat(String(price)),
+//     discount: discount ? parseFloat(String(discount)) : 0,
+//     inventory: inventory ? parseInt(String(inventory), 10) : 0,
+//     status: status || existing.status,
+//     material: {
+//       connect: { id: material.id },
+//     },
+//     type: {
+//       connect: { id: type.id },
+//     },
+//     brand: {
+//       connect: { id: brand.id },
+//     },
+//   };
+//
+//   if (
+//     imageFilenames &&
+//     Array.isArray(imageFilenames) &&
+//     imageFilenames.length > 0
+//   ) {
+//     const existingImages = await getProductImages(existing.id);
+//     const existingImageMap = new Map(
+//       existingImages.map((img) => [img.id, img])
+//     );
+//
+//     let imageIdsArray: number[] = [];
+//     if (imageIds) {
+//       if (Array.isArray(imageIds)) {
+//         imageIdsArray = imageIds
+//           .map((id: any) => Number(id))
+//           .filter((id: number) => !isNaN(id) && id > 0);
+//       } else if (typeof imageIds === "string") {
+//         imageIdsArray = imageIds
+//           .split(",")
+//           .map((id: string) => Number(id.trim()))
+//           .filter((id: number) => !isNaN(id) && id > 0);
+//       }
+//     }
+//
+//     if (imageIdsArray.length === 0) {
+//       throw createError({
+//         message: "Image IDs are required when uploading new images.",
+//         status: 400,
+//         code: errorCode.invalid,
+//       });
+//     }
+//
+//     if (imageIdsArray.length !== imageFilenames.length) {
+//       throw createError({
+//         message: `Number of image IDs (${imageIdsArray.length}) must match number of uploaded files (${imageFilenames.length}).`,
+//         status: 400,
+//         code: errorCode.invalid,
+//       });
+//     }
+//
+//     for (const imageId of imageIdsArray) {
+//       const image = existingImageMap.get(imageId);
+//       if (!image) {
+//         throw createError({
+//           message: `Image with ID ${imageId} does not belong to this product.`,
+//           status: 400,
+//           code: errorCode.invalid,
+//         });
+//       }
+//     }
+//
+//     for (let i = 0; i < imageFilenames.length; i++) {
+//       const imageId = imageIdsArray[i];
+//       const imageFilename = imageFilenames[i];
+//       if (!imageFilename || !imageId) continue;
+//
+//       const existingImage = existingImageMap.get(imageId);
+//       if (existingImage) {
+//         const oldImagePath = getFilePath(
+//           "uploads",
+//           "images",
+//           "product",
+//           existingImage.path
+//         );
+//         removeFile(oldImagePath);
+//
+//         await updateProductImage(imageId, imageFilename);
+//       }
+//     }
+//   }
+//
+//   await updateProduct(existing.id, updateData);
+//
+//   const productWithImages = await getProductBySlug(newSlug);
+//
+//   return productWithImages;
+// };
 
 export const validateAndUpdateProduct = async (
   slug: string,
-  params: UpdateProductParams
+  params: UpdateProductNewParams
 ) => {
   const {
     name,
     description,
-    price,
-    discount,
-    inventory,
-    status,
-    materialId,
-    typeId,
-    imageFilenames,
-    imageIds,
+    concentration,
+    gender,
+    brandId,
+    isActive,
+    isLimited,
+    releasedYear,
   } = params;
 
   if (!slug || slug.trim().length === 0) {
@@ -349,6 +723,7 @@ export const validateAndUpdateProduct = async (
   }
 
   const trimmedName = name.trim();
+  const trimmedDescription = description.trim();
 
   const existingByName = await getProductByNameExcludingId(
     trimmedName,
@@ -362,37 +737,19 @@ export const validateAndUpdateProduct = async (
     });
   }
 
-  const materialIdNum = parseInt(String(materialId), 10);
-  if (isNaN(materialIdNum) || materialIdNum <= 0) {
+  const brandIdNum = parseInt(String(brandId), 10);
+  if (isNaN(brandIdNum) || brandIdNum <= 0) {
     throw createError({
-      message: "Invalid material ID.",
+      message: "Invalid brand ID.",
       status: 400,
       code: errorCode.invalid,
     });
   }
 
-  const material = await getMaterialById(materialIdNum);
-  if (!material) {
+  const brand = await findBrandById(brandIdNum);
+  if (!brand) {
     throw createError({
-      message: "Material not found.",
-      status: 404,
-      code: errorCode.notFound,
-    });
-  }
-
-  const typeIdNum = parseInt(String(typeId), 10);
-  if (isNaN(typeIdNum) || typeIdNum <= 0) {
-    throw createError({
-      message: "Invalid type ID.",
-      status: 400,
-      code: errorCode.invalid,
-    });
-  }
-
-  const type = await getTypeById(typeIdNum);
-  if (!type) {
-    throw createError({
-      message: "Type not found.",
+      message: "Brand not found.",
       status: 404,
       code: errorCode.notFound,
     });
@@ -403,99 +760,61 @@ export const validateAndUpdateProduct = async (
   const slugExists = slugOwner ? slugOwner.id !== existing.id : false;
   const newSlug = await ensureUniqueSlug(baseSlug, slugExists);
 
-  const updateData: any = {
-    name: trimmedName,
-    slug: newSlug,
-    description: description.trim(),
-    price: parseFloat(String(price)),
-    discount: discount ? parseFloat(String(discount)) : 0,
-    inventory: inventory ? parseInt(String(inventory), 10) : 0,
-    status: status || existing.status,
-    material: {
-      connect: { id: material.id },
+  const parsedReleasedYear =
+    releasedYear !== undefined ? Number(releasedYear) : null;
+
+  const updatedProduct = await prisma.product.update({
+    where: { id: existing.id },
+    data: {
+      name: trimmedName,
+      slug: newSlug,
+      concentration,
+      gender,
+      description: trimmedDescription,
+      isActive: typeof isActive === "boolean" ? isActive : existing.isActive,
+      isLimited: typeof isLimited === "boolean" ? isLimited : existing.isLimited,
+      releasedYear:
+        parsedReleasedYear !== null && !isNaN(parsedReleasedYear)
+          ? parsedReleasedYear
+          : existing.releasedYear,
+      brand: {
+        connect: { id: brand.id },
+      },
     },
-    type: {
-      connect: { id: type.id },
+    include: {
+      brand: true,
     },
-  };
+  });
 
-  if (
-    imageFilenames &&
-    Array.isArray(imageFilenames) &&
-    imageFilenames.length > 0
-  ) {
-    const existingImages = await getProductImages(existing.id);
-    const existingImageMap = new Map(
-      existingImages.map((img) => [img.id, img])
-    );
-
-    let imageIdsArray: number[] = [];
-    if (imageIds) {
-      if (Array.isArray(imageIds)) {
-        imageIdsArray = imageIds
-          .map((id: any) => Number(id))
-          .filter((id: number) => !isNaN(id) && id > 0);
-      } else if (typeof imageIds === "string") {
-        imageIdsArray = imageIds
-          .split(",")
-          .map((id: string) => Number(id.trim()))
-          .filter((id: number) => !isNaN(id) && id > 0);
-      }
-    }
-
-    if (imageIdsArray.length === 0) {
-      throw createError({
-        message: "Image IDs are required when uploading new images.",
-        status: 400,
-        code: errorCode.invalid,
-      });
-    }
-
-    if (imageIdsArray.length !== imageFilenames.length) {
-      throw createError({
-        message: `Number of image IDs (${imageIdsArray.length}) must match number of uploaded files (${imageFilenames.length}).`,
-        status: 400,
-        code: errorCode.invalid,
-      });
-    }
-
-    for (const imageId of imageIdsArray) {
-      const image = existingImageMap.get(imageId);
-      if (!image) {
-        throw createError({
-          message: `Image with ID ${imageId} does not belong to this product.`,
-          status: 400,
-          code: errorCode.invalid,
-        });
-      }
-    }
-
-    for (let i = 0; i < imageFilenames.length; i++) {
-      const imageId = imageIdsArray[i];
-      const imageFilename = imageFilenames[i];
-      if (!imageFilename || !imageId) continue;
-
-      const existingImage = existingImageMap.get(imageId);
-      if (existingImage) {
-        const oldImagePath = getFilePath(
-          "uploads",
-          "images",
-          "product",
-          existingImage.path
-        );
-        removeFile(oldImagePath);
-
-        await updateProductImage(imageId, imageFilename);
-      }
-    }
-  }
-
-  const product = await updateProduct(existing.id, updateData);
-
-  const productWithImages = await getProductBySlug(newSlug);
-
-  return productWithImages;
+  return updatedProduct;
 };
+
+// export const validateAndDeleteProduct = async (slug: string) => {
+//   if (!slug || slug.trim().length === 0) {
+//     throw createError({
+//       message: "Slug parameter is required.",
+//       status: 400,
+//       code: errorCode.invalid,
+//     });
+//   }
+//
+//   const existing = await getProductBySlug(slug);
+//   if (!existing) {
+//     throw createError({
+//       message: "Product not found.",
+//       status: 404,
+//       code: errorCode.notFound,
+//     });
+//   }
+//
+//   const images = await getProductImages(existing.id);
+//   for (const image of images) {
+//     const imagePath = getFilePath("uploads", "images", "product", image.path);
+//     removeFile(imagePath);
+//   }
+//
+//   await deleteProduct(existing.id);
+// };
 
 export const validateAndDeleteProduct = async (slug: string) => {
   if (!slug || slug.trim().length === 0) {
@@ -513,12 +832,6 @@ export const validateAndDeleteProduct = async (slug: string) => {
       status: 404,
       code: errorCode.notFound,
     });
-  }
-
-  const images = await getProductImages(existing.id);
-  for (const image of images) {
-    const imagePath = getFilePath("uploads", "images", "product", image.path);
-    removeFile(imagePath);
   }
 
   await deleteProduct(existing.id);
@@ -541,31 +854,49 @@ export const parseProductQueryParams = (
       ? query.search.trim()
       : undefined;
 
-  let status: Status | undefined;
-  if (typeof query.status === "string") {
-    const statusValue = query.status.toUpperCase();
-    if (Object.values(Status).includes(statusValue as Status)) {
-      status = statusValue as Status;
+  const brandSlug =
+    typeof query.brandSlug === "string" && query.brandSlug.trim().length > 0
+      ? query.brandSlug.trim()
+      : undefined;
+
+  let gender: Gender | undefined;
+  if (typeof query.gender === "string") {
+    const genderValue = query.gender.toUpperCase();
+    if (Object.values(Gender).includes(genderValue as Gender)) {
+      gender = genderValue as Gender;
     }
   }
 
-  const materialSlug =
-    typeof query.materialSlug === "string" &&
-    query.materialSlug.trim().length > 0
-      ? query.materialSlug.trim()
-      : undefined;
+  let concentration: Concentration | undefined;
+  if (typeof query.concentration === "string") {
+    const concentrationValue = query.concentration.toUpperCase();
+    if (
+      Object.values(Concentration).includes(concentrationValue as Concentration)
+    ) {
+      concentration = concentrationValue as Concentration;
+    }
+  }
 
-  const typeSlug =
-    typeof query.typeSlug === "string" && query.typeSlug.trim().length > 0
-      ? query.typeSlug.trim()
-      : undefined;
+  const parseBoolean = (value: any) => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === "true") return true;
+      if (normalized === "false") return false;
+    }
+    return undefined;
+  };
 
+  const isActive = parseBoolean(query.isActive);
+  const isLimited = parseBoolean(query.isLimited);
   return {
     pageSize,
     offset,
     search,
-    status,
-    materialSlug,
-    typeSlug,
+    brandSlug,
+    gender,
+    concentration,
+    isActive,
+    isLimited,
   };
 };

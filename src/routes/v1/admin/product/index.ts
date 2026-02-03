@@ -1,11 +1,16 @@
 import { Role } from "@prisma/client";
 import express, { Router } from "express";
 import {
-  createProductController,
-  deleteProductController,
-  getAllProductsController,
-  getProductBySlugController,
-  updateProductController,
+  createProduct,
+  createProductVariant,
+  deleteProduct,
+  deleteProductVariant,
+  getProduct,
+  getProductVariant,
+  listProducts,
+  listProductVariants,
+  updateProduct,
+  updateProductVariant,
 } from "../../../../controllers/admin/product.controller";
 import { permit } from "../../../../middlewares/check-permissions";
 import { isAuthenticated } from "../../../../middlewares/ensure-authenticated";
@@ -16,52 +21,87 @@ import {
 } from "../../../../middlewares/file-upload";
 import {
   createProductValidation,
+  createProductVariantValidation,
   updateProductValidation,
+  updateProductVariantValidation,
 } from "../../../../validations/product.validation";
 
 const router: Router = express.Router();
 
-router.get(
-  "/",
-  isAuthenticated,
-  permit(true, Role.ADMIN),
-  getAllProductsController
-);
+router.get("/", isAuthenticated, permit(true, Role.ADMIN), listProducts);
 
 router.post(
   "/",
   isAuthenticated,
   permit(true, Role.ADMIN),
-  uploadProductImages,
-  handleMulterError,
+  // uploadProductImages,
+  // handleMulterError,
   createProductValidation,
   handleValidationError,
-  createProductController
+  createProduct
 );
 
-router.get(
-  "/:slug",
-  isAuthenticated,
-  permit(true, Role.ADMIN),
-  getProductBySlugController
-);
+router.get("/:slug", isAuthenticated, permit(true, Role.ADMIN), getProduct);
 
 router.patch(
   "/:slug",
   isAuthenticated,
   permit(true, Role.ADMIN),
-  uploadProductImages,
-  handleMulterError,
+  // uploadProductImages,
+  // handleMulterError,
   updateProductValidation,
   handleValidationError,
-  updateProductController
+  updateProduct
 );
 
 router.delete(
   "/:slug",
   isAuthenticated,
   permit(true, Role.ADMIN),
-  deleteProductController
+  deleteProduct
+);
+
+router.get(
+  "/:slug/variants",
+  isAuthenticated,
+  permit(true, Role.ADMIN),
+  listProductVariants
+);
+
+router.get(
+  "/:slug/variants/:variantSlug",
+  isAuthenticated,
+  permit(true, Role.ADMIN),
+  getProductVariant
+);
+
+router.post(
+  "/:slug/variants/create",
+  isAuthenticated,
+  permit(true, Role.ADMIN),
+  uploadProductImages,
+  handleMulterError,
+  createProductVariantValidation,
+  handleValidationError,
+  createProductVariant
+);
+
+router.patch(
+  "/:slug/variants/:variantSlug",
+  isAuthenticated,
+  permit(true, Role.ADMIN),
+  uploadProductImages,
+  handleMulterError,
+  updateProductVariantValidation,
+  handleValidationError,
+  updateProductVariant
+);
+
+router.delete(
+  "/:slug/variants/:variantSlug",
+  isAuthenticated,
+  permit(true, Role.ADMIN),
+  deleteProductVariant
 );
 
 export default router;

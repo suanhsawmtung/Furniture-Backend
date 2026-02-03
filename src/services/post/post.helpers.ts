@@ -69,7 +69,7 @@ export const buildPostWhere = async ({
   return where;
 };
 
-export const findPostBySlug = async (slug: string) => {
+export const findPostDetail = async (slug: string) => {
   return await prisma.post.findUnique({
     where: { slug },
     include: {
@@ -84,6 +84,12 @@ export const findPostBySlug = async (slug: string) => {
       },
       category: true,
     },
+  });
+};
+
+export const findPostBySlug = async (slug: string) => {
+  return await prisma.post.findUnique({
+    where: { slug },
   });
 };
 

@@ -1,23 +1,33 @@
 import { faker } from "@faker-js/faker";
-import { Role } from "@prisma/client";
+import { Concentration, Gender, Role, VariantSource } from "@prisma/client";
 import { hash } from "../src/lib/hash";
 import { prisma } from "../src/lib/prisma";
 import { createSlug, ensureUniqueSlug } from "../src/utils/common";
 
 // Material seed data
-const materials = [
-  { name: "Wooden", slug: "wooden" },
-  { name: "Bamboo", slug: "bamboo" },
-  { name: "Metal", slug: "metal" },
-];
+// const materials = [
+//   { name: "Wooden", slug: "wooden" },
+//   { name: "Bamboo", slug: "bamboo" },
+//   { name: "Metal", slug: "metal" },
+// ];
 
 // Type seed data
-const types = [
-  { name: "Seating", slug: "seating" },
-  { name: "Lying", slug: "lying" },
-  { name: "Tables", slug: "tables" },
-  { name: "Storage", slug: "storage" },
-  { name: "Entertainment", slug: "entertainment" },
+// const types = [
+//   { name: "Seating", slug: "seating" },
+//   { name: "Lying", slug: "lying" },
+//   { name: "Tables", slug: "tables" },
+//   { name: "Storage", slug: "storage" },
+//   { name: "Entertainment", slug: "entertainment" },
+// ];
+
+// Brand seed data
+const brands = [
+  { name: "Versace", slug: "versace" },
+  { name: "Jean Paul Gaultier", slug: "jean-paul-gaultier" },
+  { name: "Tom Ford", slug: "tom-ford" },
+  { name: "Yves Saint Laurent", slug: "yves-saint-laurent" },
+  { name: "Lancome", slug: "lancome" },
+  { name: "Carolina Herrera", slug: "carolina-herrera" },
 ];
 
 // Category seed data
@@ -27,6 +37,99 @@ const categories = [
   { name: "Furniture Care & Maintenance", slug: "furniture-care-maintenance" },
   { name: "Material Guide", slug: "material-guide" },
   { name: "Home Decor Inspiration", slug: "home-decor-inspiration" },
+];
+
+// Product seed data
+const products = [
+  {
+    name: "Versace Eros",
+    brandSlug: "versace",
+    concentration: Concentration.EDT,
+    gender: Gender.MALE,
+    description:
+      "A fresh, woody fragrance with vibrant citrus and warm amber notes.",
+    releasedYear: 2019,
+    variants: [
+      {
+        size: 50,
+        source: VariantSource.ORIGINAL,
+        price: 79,
+        discount: 0,
+        stock: 25,
+      },
+    ],
+  },
+  {
+    name: "Le Male",
+    brandSlug: "jean-paul-gaultier",
+    concentration: Concentration.EDT,
+    gender: Gender.MALE,
+    description:
+      "Iconic lavender and mint blended with warm vanilla and woods.",
+    releasedYear: 2015,
+    variants: [
+      {
+        size: 40,
+        source: VariantSource.ORIGINAL,
+        price: 69,
+        discount: 0,
+        stock: 40,
+      },
+      {
+        size: 75,
+        source: VariantSource.ORIGINAL,
+        price: 89,
+        discount: 5,
+        stock: 30,
+      },
+      {
+        size: 125,
+        source: VariantSource.DECANT,
+        price: 119,
+        discount: 10,
+        stock: 15,
+      },
+    ],
+  },
+  {
+    name: "Lost Cherry",
+    brandSlug: "tom-ford",
+    concentration: Concentration.EDP,
+    gender: Gender.UNISEX,
+    description:
+      "Bold cherry and almond balanced with rich floral and amber accords.",
+    releasedYear: 2020,
+    variants: [
+      {
+        size: 30,
+        source: VariantSource.ORIGINAL,
+        price: 149,
+        discount: 0,
+        stock: 20,
+      },
+      {
+        size: 50,
+        source: VariantSource.ORIGINAL,
+        price: 199,
+        discount: 0,
+        stock: 15,
+      },
+      {
+        size: 100,
+        source: VariantSource.ORIGINAL,
+        price: 299,
+        discount: 15,
+        stock: 10,
+      },
+      {
+        size: 100,
+        source: VariantSource.DECANT,
+        price: 129,
+        discount: 0,
+        stock: 20,
+      },
+    ],
+  },
 ];
 
 export function createRandomUser() {
@@ -104,32 +207,32 @@ export async function main() {
   console.log("Starting seed...");
 
   // Seed Materials
-  console.log("Seeding Materials...");
-  for (const material of materials) {
-    await prisma.material.upsert({
-      where: { slug: material.slug },
-      update: {},
-      create: {
-        name: material.name,
-        slug: material.slug,
-      },
-    });
-    console.log(`Created/Updated material: ${material.name}`);
-  }
+  // console.log("Seeding Materials...");
+  // for (const material of materials) {
+  //   await prisma.material.upsert({
+  //     where: { slug: material.slug },
+  //     update: {},
+  //     create: {
+  //       name: material.name,
+  //       slug: material.slug,
+  //     },
+  //   });
+  //   console.log(`Created/Updated material: ${material.name}`);
+  // }
 
   // Seed Types
-  console.log("Seeding Types...");
-  for (const type of types) {
-    await prisma.type.upsert({
-      where: { slug: type.slug },
-      update: {},
-      create: {
-        name: type.name,
-        slug: type.slug,
-      },
-    });
-    console.log(`Created/Updated type: ${type.name}`);
-  }
+  // console.log("Seeding Types...");
+  // for (const type of types) {
+  //   await prisma.type.upsert({
+  //     where: { slug: type.slug },
+  //     update: {},
+  //     create: {
+  //       name: type.name,
+  //       slug: type.slug,
+  //     },
+  //   });
+  //   console.log(`Created/Updated type: ${type.name}`);
+  // }
 
   // Seed Categories
   console.log("Seeding Categories...");
@@ -143,6 +246,117 @@ export async function main() {
       },
     });
     console.log(`Created/Updated category: ${category.name}`);
+  }
+
+  // Seed Brands
+  console.log("Seeding Brands...");
+  for (const brand of brands) {
+    await prisma.brand.upsert({
+      where: { slug: brand.slug },
+      update: {},
+      create: {
+        name: brand.name,
+        slug: brand.slug,
+      },
+    });
+    console.log(`Created/Updated brand: ${brand.name}`);
+  }
+
+  // Seed Products and Variants
+  console.log("Seeding Products and Variants...");
+  await prisma.inventory.deleteMany({});
+  await prisma.image.deleteMany({});
+  await prisma.productVariant.deleteMany({});
+  await prisma.product.deleteMany({});
+
+  for (const productData of products) {
+    const brand = await prisma.brand.findUnique({
+      where: { slug: productData.brandSlug },
+      select: { id: true, name: true },
+    });
+
+    if (!brand) {
+      console.log(
+        `Brand with slug ${productData.brandSlug} not found, skipping product: ${productData.name}`
+      );
+      continue;
+    }
+
+    const baseProductSlug = createSlug(productData.name);
+    const existingProduct = await prisma.product.findUnique({
+      where: { slug: baseProductSlug },
+    });
+    const productSlug = await ensureUniqueSlug(
+      baseProductSlug,
+      !!existingProduct
+    );
+
+    const product = await prisma.product.create({
+      data: {
+        name: productData.name,
+        slug: productSlug,
+        concentration: productData.concentration,
+        gender: productData.gender,
+        description: productData.description,
+        releasedYear: productData.releasedYear,
+        brandId: brand.id,
+      },
+    });
+
+    for (const [index, variantData] of productData.variants.entries()) {
+      const skuBase = createSlug(
+        `${brand.name} ${product.name} ${variantData.size}ml`
+      ).toUpperCase();
+      let sku = skuBase;
+      let existingSku = await prisma.productVariant.findUnique({
+        where: { sku },
+      });
+      if (existingSku) {
+        sku = `${skuBase}-${faker.string.alphanumeric({
+          length: 4,
+          casing: "upper",
+        })}`;
+      }
+
+      const baseVariantSlug = createSlug(
+        `${product.slug}-${variantData.size}-${variantData.source}`
+      );
+      const existingVariant = await prisma.productVariant.findUnique({
+        where: { slug: baseVariantSlug },
+      });
+      const variantSlug = await ensureUniqueSlug(
+        baseVariantSlug,
+        !!existingVariant
+      );
+
+      const isPrimary =
+        (variantData as { isPrimary?: boolean }).isPrimary ?? index === 0;
+
+      const variant = await prisma.productVariant.create({
+        data: {
+          slug: variantSlug,
+          sku,
+          size: variantData.size,
+          source: variantData.source,
+          price: variantData.price,
+          discount: variantData.discount,
+          stock: variantData.stock,
+          isPrimary,
+          productId: product.id,
+        },
+      });
+
+      await prisma.inventory.create({
+        data: {
+          productVariantId: variant.id,
+          quantity: variantData.stock,
+          reserved: 0,
+        },
+      });
+
+    }
+
+    console.log(`Created product with variants: ${product.name}`);
   }
 
   // Seed Admin User

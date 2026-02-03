@@ -14,3 +14,5 @@ export const typeNameValidation = [...nameValidation];
 export const materialNameValidation = [...nameValidation];
 
 export const categoryNameValidation = [...nameValidation];
+
+export const brandNameValidation = [...nameValidation];
