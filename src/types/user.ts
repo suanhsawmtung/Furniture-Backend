@@ -1,13 +1,24 @@
-import { Image, Order, OrderItem, Product, ProductVariant, ProductWishlist, Review, Role, Status, User } from "@prisma/client";
+import {
+  Image,
+  Order,
+  OrderItem,
+  Product,
+  ProductVariant,
+  ProductWishlist,
+  Review,
+  Role,
+  Status,
+  User,
+} from "@prisma/client";
 
 export type SafeUserT = Omit<
   User,
-  "password" | 
-  "refreshToken" | 
-  "previousRefreshToken" | 
-  "googleId" | 
-  "rotateTokenAt" | 
-  "deletedAt"
+  | "password"
+  | "refreshToken"
+  | "previousRefreshToken"
+  | "googleId"
+  | "rotateTokenAt"
+  | "deletedAt"
 >;
 
 export type ListUsersParams = {
@@ -78,7 +89,10 @@ export type ListUserResultT = {
   pageSize: number;
 };
 
-export type PublicUserT = Pick<User, "id" | "firstName" | "lastName" | "username">;
+export type PublicUserT = Pick<
+  User,
+  "id" | "firstName" | "lastName" | "username"
+>;
 
 export type PublicUserResultT = {
   items: PublicUserT[];
@@ -89,19 +103,31 @@ export type PublicUserResultT = {
 
 export type UserProfileQueryData = Pick<
   SafeUserT,
-  "points" | "id" | "firstName" | "lastName" | "email" | "phone" | "emailVerifiedAt" | "createdAt" | "username" | "image"
+  | "points"
+  | "id"
+  | "firstName"
+  | "lastName"
+  | "email"
+  | "phone"
+  | "emailVerifiedAt"
+  | "createdAt"
+  | "username"
+  | "image"
 > & {
   orders: (Pick<Order, "id" | "code" | "createdAt" | "totalPrice"> & {
     orderItems: Pick<OrderItem, "quantity">[];
   })[];
   wishlists: (Pick<ProductWishlist, "id"> & {
-    product: Pick<Product, "id" | "name"> & {
+    product: Pick<Product, "id" | "name" | "slug"> & {
       variants: (Pick<ProductVariant, "price" | "discount"> & {
         images: Pick<Image, "path">[];
       })[];
     };
   })[];
-  reviews: (Pick<Review, "id" | "content" | "rating" | "isPublish" | "createdAt"> & {
+  reviews: (Pick<
+    Review,
+    "id" | "content" | "rating" | "isPublish" | "createdAt"
+  > & {
     product: Pick<Product, "name">;
   })[];
 };
@@ -126,6 +152,7 @@ export type MyProfileT = {
   wishlist: {
     id: number;
     name: string;
+    slug: string;
     image: string | null;
     price: number;
     discount: number;

@@ -19,12 +19,14 @@ import {
   findUserByUsernameExcludingId,
   generateUsername,
   requireUserId,
-  updateUserRecord
+  updateUserRecord,
 } from "./user.helpers";
 import { IProfileService } from "./user.interface";
 
 export class ProfileService implements IProfileService {
-  async getMe(userId: number): Promise<ServiceResponseT<SafeUserT & { hasPassword: boolean }>> {
+  async getMe(
+    userId: number,
+  ): Promise<ServiceResponseT<SafeUserT & { hasPassword: boolean }>> {
     const normalizedId = requireUserId(userId);
     const [user, userPassword] = await Promise.all([
       findUserById(normalizedId),
@@ -52,55 +54,58 @@ export class ProfileService implements IProfileService {
   async getMyProfile(userId: number): Promise<ServiceResponseT<MyProfileT>> {
     const normalizedId = requireUserId(userId);
 
-    const [user, totalOrders, totalSpentResult, totalReviews] = await Promise.all([
-      prisma.user.findUnique({
-        where: { id: normalizedId },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          emailVerifiedAt: true,
-          points: true,
-          createdAt: true,
-          username: true,
-          phone: true,
-          image: true,
-          orders: {
-            take: 3,
-            orderBy: { createdAt: "desc" },
-            select: {
-              id: true,
-              code: true,
-              createdAt: true,
-              totalPrice: true,
-              orderItems: {
-                select: {
-                  quantity: true,
+    const [user, totalOrders, totalSpentResult, totalReviews] =
+      await Promise.all([
+        prisma.user.findUnique({
+          where: { id: normalizedId },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            emailVerifiedAt: true,
+            points: true,
+            createdAt: true,
+            username: true,
+            phone: true,
+            image: true,
+            orders: {
+              take: 3,
+              orderBy: { createdAt: "desc" },
+              select: {
+                id: true,
+                code: true,
+                createdAt: true,
+                totalPrice: true,
+                orderItems: {
+                  select: {
+                    quantity: true,
+                  },
                 },
               },
             },
-          },
-          wishlists: {
-            take: 3,
-            orderBy: { createdAt: "desc" },
-            select: {
-              id: true,
-              product: {
-                select: {
-                  id: true,
-                  name: true,
-                  variants: {
-                    where: { isPrimary: true },
-                    take: 1,
-                    select: {
-                      price: true,
-                      discount: true,
-                      images: {
-                        where: { isPrimary: true },
-                        take: 1,
-                        select: {
-                          path: true,
+            wishlists: {
+              take: 3,
+              orderBy: { createdAt: "desc" },
+              select: {
+                id: true,
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    variants: {
+                      where: { isPrimary: true },
+                      take: 1,
+                      select: {
+                        price: true,
+                        discount: true,
+                        images: {
+                          where: { isPrimary: true },
+                          take: 1,
+                          select: {
+                            path: true,
+                          },
                         },
                       },
                     },
@@ -108,36 +113,43 @@ export class ProfileService implements IProfileService {
                 },
               },
             },
-          },
-          reviews: {
-            take: 3,
-            orderBy: { createdAt: "desc" },
-            select: {
-              id: true,
-              content: true,
-              rating: true,
-              isPublish: true,
-              createdAt: true,
-              product: {
-                select: {
-                  name: true,
+            reviews: {
+              take: 3,
+              orderBy: { createdAt: "desc" },
+              select: {
+                id: true,
+                content: true,
+                rating: true,
+                isPublish: true,
+                createdAt: true,
+                product: {
+                  select: {
+                    name: true,
+                  },
                 },
               },
             },
           },
-        },
-      }),
-      prisma.order.count({
-        where: { userId: normalizedId, status: OrderStatus.DONE, deletedAt: null },
-      }),
-      prisma.order.aggregate({
-        where: { userId: normalizedId, status: OrderStatus.DONE, deletedAt: null },
-        _sum: { totalPrice: true },
-      }),
-      prisma.review.count({
-        where: { userId: normalizedId },
-      }),
-    ]);
+        }),
+        prisma.order.count({
+          where: {
+            userId: normalizedId,
+            status: OrderStatus.DONE,
+            deletedAt: null,
+          },
+        }),
+        prisma.order.aggregate({
+          where: {
+            userId: normalizedId,
+            status: OrderStatus.DONE,
+            deletedAt: null,
+          },
+          _sum: { totalPrice: true },
+        }),
+        prisma.review.count({
+          where: { userId: normalizedId },
+        }),
+      ]);
 
     if (!user) {
       throw createError({
@@ -162,7 +174,7 @@ export class ProfileService implements IProfileService {
 
   async updateMe(
     userId: number,
-    params: UpdateMeParams
+    params: UpdateMeParams,
   ): Promise<ServiceResponseT<SafeUserT>> {
     const { firstName, lastName, phone, imageFilename } = params;
     const normalizedId = requireUserId(userId);
@@ -177,12 +189,15 @@ export class ProfileService implements IProfileService {
     }
 
     // New username if name changed
-    const newUsername = await generateUsername(firstName || null, lastName || null);
+    const newUsername = await generateUsername(
+      firstName || null,
+      lastName || null,
+    );
 
     if (newUsername !== existing.username) {
       const existingByUsername = await findUserByUsernameExcludingId(
         newUsername,
-        existing.id
+        existing.id,
       );
       if (existingByUsername) {
         throw createError({
@@ -202,7 +217,12 @@ export class ProfileService implements IProfileService {
 
     if (imageFilename) {
       if (existing.image) {
-        const oldImagePath = getFilePath("uploads", "images", "user", existing.image);
+        const oldImagePath = getFilePath(
+          "uploads",
+          "images",
+          "user",
+          existing.image,
+        );
         removeFile(oldImagePath);
       }
       updateData.image = imageFilename;
@@ -221,7 +241,7 @@ export class ProfileService implements IProfileService {
 
   async changePassword(
     userId: number,
-    params: ChangePasswordParams
+    params: ChangePasswordParams,
   ): Promise<ServiceResponseT<null>> {
     const { oldPassword, newPassword } = params;
     const normalizedId = requireUserId(userId);
@@ -238,8 +258,8 @@ export class ProfileService implements IProfileService {
     const isMatch = await compareHashed(oldPassword, user.password || "");
     if (!user.password || !isMatch) {
       throw createError({
-        message: !user.password 
-          ? "You do not have a password yet. Please use the Set Password feature." 
+        message: !user.password
+          ? "You do not have a password yet. Please use the Set Password feature."
           : "Current password does not match.",
         status: 400,
         code: errorCode.invalid,
@@ -260,7 +280,7 @@ export class ProfileService implements IProfileService {
 
   async setPassword(
     userId: number,
-    params: SetPasswordParams
+    params: SetPasswordParams,
   ): Promise<ServiceResponseT<null>> {
     const { newPassword } = params;
     const normalizedId = requireUserId(userId);
@@ -276,7 +296,8 @@ export class ProfileService implements IProfileService {
 
     if (user.password) {
       throw createError({
-        message: "You already have a password. Please use the Change Password feature.",
+        message:
+          "You already have a password. Please use the Change Password feature.",
         status: 400,
         code: errorCode.invalid,
       });

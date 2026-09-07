@@ -4,7 +4,7 @@ import { MyProfileT, UserProfileQueryData } from "../types/user";
 export class UserDto {
   static toMyProfile(
     user: UserProfileQueryData,
-    stats: { totalOrders: number; totalSpent: number; totalReviews: number }
+    stats: { totalOrders: number; totalSpent: number; totalReviews: number },
   ): MyProfileT {
     const points = user.points;
     const gradeInfo = getGradeInfo(points);
@@ -12,9 +12,9 @@ export class UserDto {
     const progress =
       rangeSize > 0
         ? Math.min(
-          100,
-          Math.max(0, ((points - gradeInfo.start) / rangeSize) * 100)
-        )
+            100,
+            Math.max(0, ((points - gradeInfo.start) / rangeSize) * 100),
+          )
         : 100;
 
     const rewards = {
@@ -45,7 +45,7 @@ export class UserDto {
         totalPrice: Number(order.totalPrice),
         totalQuantity: order.orderItems.reduce(
           (acc, item) => acc + item.quantity,
-          0
+          0,
         ),
       })),
       wishlist: user.wishlists.map((item) => {
@@ -54,6 +54,7 @@ export class UserDto {
         return {
           id: product.id,
           name: product.name,
+          slug: product.slug,
           image: primaryVariant?.images[0]?.path || null,
           price: Number(primaryVariant?.price || 0),
           discount: Number(primaryVariant?.discount || 0),
