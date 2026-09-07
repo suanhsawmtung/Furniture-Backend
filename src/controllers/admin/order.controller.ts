@@ -9,7 +9,7 @@ const adminOrderService = new AdminOrderService();
 export const listOrders = async (
   req: CustomRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const result = await adminOrderService.listOrders(req.query);
@@ -22,7 +22,7 @@ export const listOrders = async (
 export const getOrder = async (
   req: CustomRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { code } = req.params;
@@ -45,7 +45,7 @@ export const getOrder = async (
 export const createOrder = async (
   req: CustomRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const result = await adminOrderService.createOrder({
@@ -62,7 +62,7 @@ export const createOrder = async (
 export const updateOrder = async (
   req: CustomRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { code } = req.params;

@@ -1,4 +1,14 @@
-import { Brand, Order, OrderItem, OrderPaymentStatus, OrderSource, OrderStatus, Product, ProductVariant, User } from "@prisma/client";
+import {
+  Brand,
+  Order,
+  OrderItem,
+  OrderPaymentStatus,
+  OrderSource,
+  OrderStatus,
+  Product,
+  ProductVariant,
+  User,
+} from "@prisma/client";
 import { CursorPaginationParams } from "./common";
 
 export type ListAdminOrdersParams = {
@@ -18,7 +28,10 @@ export type ListOrdersParams = {
 } & CursorPaginationParams;
 
 export type ListOrderT = Order & {
-  user: Pick<User, "id" | "firstName" | "lastName" | "username" | "phone" | "email">;
+  user: Pick<
+    User,
+    "id" | "firstName" | "lastName" | "username" | "phone" | "email"
+  >;
   orderItems?: (OrderItem & {
     productVariant?: ProductVariant & {
       product: Pick<Product, "id" | "name" | "slug"> & { brand: Brand };
@@ -87,19 +100,19 @@ export type ParseOrderQueryParamsResult = {
 
 export type OrderCardQueryDataT = Pick<
   Order,
-  "id" |
-  "code" |
-  "image" |
-  "status" |
-  "paymentStatus" |
-  "createdAt" |
-  "totalPrice" |
-  "customerAddress" |
-  "customerName" |
-  "customerPhone" |
-  "customerNotes" |
-  "cancelledReason" |
-  "rejectedReason"
+  | "id"
+  | "code"
+  | "image"
+  | "status"
+  | "paymentStatus"
+  | "createdAt"
+  | "totalPrice"
+  | "customerAddress"
+  | "customerName"
+  | "customerPhone"
+  | "customerNotes"
+  | "cancelledReason"
+  | "rejectedReason"
 > & {
   orderItems: (Pick<OrderItem, "quantity" | "price"> & {
     productVariant: Pick<ProductVariant, "size"> & {
@@ -113,10 +126,7 @@ export type OrderCardQueryDataT = Pick<
   totalRefundAmount?: number;
 };
 
-export type MyOrderT = Omit<
-  OrderCardQueryDataT,
-  "orderItems"
-> & {
+export type MyOrderT = Omit<OrderCardQueryDataT, "orderItems"> & {
   orderItems: (Pick<OrderItem, "quantity" | "price"> & {
     size: number;
     image: string | null;
@@ -125,11 +135,24 @@ export type MyOrderT = Omit<
       slug: string;
       name: string;
       brand: string;
-    }
+    };
   })[];
 };
 
 export type MyOrderListResultT = {
   items: MyOrderT[];
   nextCursor: number | null;
+};
+
+export type PlaceOrderParams = {
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string;
+  customerNotes?: string;
+  items: Array<{
+    productVariantId: number | string;
+    quantity: number | string;
+  }>;
+  userId: number | string;
+  imageFilename: string;
 };

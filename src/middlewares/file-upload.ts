@@ -11,7 +11,7 @@ const whiteList = ["image/jpg", "image/jpeg", "image/png"];
 const fileFilter = (
   _req: Request,
   file: Express.Multer.File,
-  cb: FileFilterCallback
+  cb: FileFilterCallback,
 ) => {
   if (whiteList.includes(file.mimetype)) {
     cb(null, true);
@@ -51,7 +51,7 @@ const createUpload = (subDir: string) => {
 const createMulterMiddleware = (
   upload: ReturnType<typeof createUpload>,
   fieldName: string,
-  subDir: string
+  subDir: string,
 ) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const middleware = upload.single(fieldName);
@@ -65,7 +65,7 @@ const createMulterMiddleware = (
         if (file) {
           trackUploadedFile(req, file.filename, subDir);
         } else {
-          console.log("uploadPostImage file: none");
+          console.log("Upload Image file: none");
         }
       }
       next();
@@ -78,7 +78,7 @@ const createMulterArrayMiddleware = (
   upload: ReturnType<typeof createUpload>,
   fieldName: string,
   maxCount: number,
-  subDir: string
+  subDir: string,
 ) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const middleware = upload.array(fieldName, maxCount);
@@ -104,7 +104,7 @@ const createMulterArrayMiddleware = (
 export const handleMulterError = (
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   const err = (req as any).multerError;
   if (err) {
@@ -141,13 +141,13 @@ export const handleMulterError = (
 export const uploadPostImage = createMulterMiddleware(
   createUpload("post"),
   "image",
-  "post"
+  "post",
 );
 
 export const uploadProfileImage = createMulterMiddleware(
   createUpload("user"),
   "avatar",
-  "user"
+  "user",
 );
 
 // Product image upload middleware (multiple files, max 4)
@@ -155,13 +155,13 @@ export const uploadProductImages = createMulterArrayMiddleware(
   createUpload("product"),
   "images",
   4,
-  "product"
+  "product",
 );
 
 export const uploadOrderImage = createMulterMiddleware(
   createUpload("order"),
   "image",
-  "order"
+  "order",
 );
 
 // Default export for backward compatibility (profile images)

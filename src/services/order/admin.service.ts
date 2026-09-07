@@ -1,11 +1,18 @@
-import { InventoryType, Order, OrderPaymentStatus, OrderSource, OrderStatus, ReservationStatus } from "@prisma/client";
+import {
+  InventoryType,
+  Order,
+  OrderPaymentStatus,
+  OrderSource,
+  OrderStatus,
+  ReservationStatus,
+} from "@prisma/client";
 import { errorCode } from "../../config/error-code";
 import { prisma } from "../../lib/prisma";
 import { ServiceResponseT } from "../../types/common";
 import {
   CreateOrderParams,
-  ListOrderResultT,
   ListAdminOrdersParams,
+  ListOrderResultT,
   ListOrderT,
   UpdateOrderParams,
 } from "../../types/order";
@@ -18,14 +25,26 @@ import {
   findOrderWithDetailsByCode,
   generateOrderCode,
   parseOrderQueryParams,
-  requireOrderCode
+  requireOrderCode,
 } from "./order.helpers";
 import { IAdminOrderService } from "./order.interface";
 
 const ORDER_STATUS_FLOW: Record<OrderStatus, OrderStatus[]> = {
-  [OrderStatus.PENDING]: [OrderStatus.ACCEPTED, OrderStatus.REJECTED, OrderStatus.CANCELLED],
-  [OrderStatus.ACCEPTED]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED, OrderStatus.PENDING],
-  [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.ACCEPTED],
+  [OrderStatus.PENDING]: [
+    OrderStatus.ACCEPTED,
+    OrderStatus.REJECTED,
+    OrderStatus.CANCELLED,
+  ],
+  [OrderStatus.ACCEPTED]: [
+    OrderStatus.SHIPPED,
+    OrderStatus.CANCELLED,
+    OrderStatus.PENDING,
+  ],
+  [OrderStatus.SHIPPED]: [
+    OrderStatus.DELIVERED,
+    OrderStatus.CANCELLED,
+    OrderStatus.ACCEPTED,
+  ],
   [OrderStatus.DELIVERED]: [OrderStatus.DONE, OrderStatus.SHIPPED],
   [OrderStatus.REJECTED]: [OrderStatus.PENDING],
   [OrderStatus.DONE]: [],
@@ -34,7 +53,7 @@ const ORDER_STATUS_FLOW: Record<OrderStatus, OrderStatus[]> = {
 
 export class AdminOrderService implements IAdminOrderService {
   async listOrders(
-    params: ListAdminOrdersParams
+    params: ListAdminOrdersParams,
   ): Promise<ServiceResponseT<ListOrderResultT>> {
     const { pageSize, offset, search, status, paymentStatus, source, userId } =
       parseOrderQueryParams(params);
@@ -120,7 +139,7 @@ export class AdminOrderService implements IAdminOrderService {
   }
 
   async createOrder(
-    params: CreateOrderParams
+    params: CreateOrderParams,
   ): Promise<ServiceResponseT<Order>> {
     const {
       status,
@@ -133,7 +152,10 @@ export class AdminOrderService implements IAdminOrderService {
     } = params;
 
     if (status) {
-      const allowedInitialStatuses = [OrderStatus.PENDING, OrderStatus.ACCEPTED];
+      const allowedInitialStatuses = [
+        OrderStatus.PENDING,
+        OrderStatus.ACCEPTED,
+      ];
       if (!allowedInitialStatuses.includes(status as "PENDING" | "ACCEPTED")) {
         throw createError({
           message: "New admin orders can only start as PENDING or ACCEPTED.",
@@ -267,7 +289,7 @@ export class AdminOrderService implements IAdminOrderService {
 
   async updateOrder(
     code: string,
-    params: UpdateOrderParams
+    params: UpdateOrderParams,
   ): Promise<ServiceResponseT<Order>> {
     const {
       status: newStatus,
@@ -343,11 +365,11 @@ export class AdminOrderService implements IAdminOrderService {
       OrderStatus.REJECTED,
     ].includes(
       existingOrder.status as
-      | "SHIPPED"
-      | "DELIVERED"
-      | "DONE"
-      | "CANCELLED"
-      | "REJECTED"
+        | "SHIPPED"
+        | "DELIVERED"
+        | "DONE"
+        | "CANCELLED"
+        | "REJECTED",
     );
 
     const isNameChanged =
@@ -413,7 +435,8 @@ export class AdminOrderService implements IAdminOrderService {
       if (isStatusChanged) updateData.status = newStatus;
       if (isNameChanged) updateData.customerName = customerName!.trim();
       if (isPhoneChanged) updateData.customerPhone = customerPhone!.trim();
-      if (isAddressChanged) updateData.customerAddress = customerAddress!.trim();
+      if (isAddressChanged)
+        updateData.customerAddress = customerAddress!.trim();
       if (isNotesChanged) updateData.customerNotes = customerNotes!.trim();
       if (rejectedReason !== undefined)
         updateData.rejectedReason = rejectedReason.trim();

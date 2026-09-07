@@ -4,7 +4,7 @@ import {
   createOrder,
   getOrder,
   listOrders,
-  updateOrder
+  updateOrder,
 } from "../../../../controllers/admin/order.controller";
 import { permit } from "../../../../middlewares/check-permissions";
 import { isAuthenticated } from "../../../../middlewares/ensure-authenticated";
@@ -17,12 +17,7 @@ import {
 
 const router: Router = express.Router();
 
-router.get(
-  "/",
-  isAuthenticated,
-  permit(true, Role.ADMIN),
-  listOrders
-);
+router.get("/", isAuthenticated, permit(true, Role.ADMIN), listOrders);
 
 router.post(
   "/",
@@ -33,15 +28,10 @@ router.post(
   parseJsonFields(["items"]),
   createOrderValidation,
   handleValidationError,
-  createOrder
+  createOrder,
 );
 
-router.get(
-  "/:code",
-  isAuthenticated,
-  permit(true, Role.ADMIN),
-  getOrder
-);
+router.get("/:code", isAuthenticated, permit(true, Role.ADMIN), getOrder);
 
 router.patch(
   "/:code",
@@ -52,7 +42,7 @@ router.patch(
   parseJsonFields(["items"]),
   updateOrderValidation,
   handleValidationError,
-  updateOrder
+  updateOrder,
 );
 
 export default router;

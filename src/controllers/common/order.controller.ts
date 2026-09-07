@@ -9,7 +9,7 @@ const orderService = new OrderService();
 export const listMyOrders = async (
   req: CustomRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { userId } = req;
@@ -32,7 +32,7 @@ export const listMyOrders = async (
 export const cancelMyOrder = async (
   req: CustomRequest,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
   try {
     const { code } = req.params;
@@ -52,3 +52,22 @@ export const cancelMyOrder = async (
   }
 };
 
+export const placeOrder = async (
+  req: CustomRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const file = (req as any).file as Express.Multer.File | undefined;
+
+    const result = await orderService.placeOrder({
+      ...req.body,
+      imageFilename: file?.filename,
+      userId: req.userId,
+    });
+
+    return res.status(201).json(result);
+  } catch (error: any) {
+    next(error);
+  }
+};

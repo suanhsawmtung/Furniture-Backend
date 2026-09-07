@@ -6,7 +6,7 @@ const orderValidation = [
     .optional()
     .isIn(Object.values(OrderStatus))
     .withMessage(
-      `Status must be one of: ${Object.values(OrderStatus).join(", ")}.`
+      `Status must be one of: ${Object.values(OrderStatus).join(", ")}.`,
     ),
   body("customerName")
     .optional()
@@ -31,7 +31,7 @@ const orderValidation = [
   body("items")
     .isArray({ min: 1 })
     .withMessage(
-      "Order items array is required and must contain at least one item."
+      "Order items array is required and must contain at least one item.",
     )
     .custom((items) => {
       if (!Array.isArray(items)) {
@@ -49,7 +49,7 @@ const orderValidation = [
       });
     })
     .withMessage(
-      "Each item must have itemId (positive integer), quantity (positive integer), price (non-negative number)."
+      "Each item must have itemId (positive integer), quantity (positive integer), price (non-negative number).",
     ),
 ];
 
@@ -80,3 +80,57 @@ export const cancelMyOrderValidation = [
     .trim(),
 ];
 
+export const placeOrderValidation = [
+  body("customerName")
+    .exists()
+    .withMessage("Customer name is required.")
+    .notEmpty()
+    .withMessage("Customer name cannot be empty")
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Customer name must be at most 100 characters."),
+  body("customerPhone")
+    .exists()
+    .withMessage("Customer phone is required.")
+    .notEmpty()
+    .withMessage("Customer phone cannot be empty")
+    .trim()
+    .matches(/^\+?[0-9 ]+$/)
+    .withMessage("Phone number can only contain numbers, +, and spaces.")
+    .isLength({ max: 15 })
+    .withMessage("Customer phone must be at most 15 characters."),
+  body("customerAddress")
+    .exists()
+    .withMessage("Customer address is required.")
+    .notEmpty()
+    .withMessage("Customer address cannot be empty")
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage("Customer address must be at most 255 characters."),
+  body("customerNotes")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Customer notes must be at most 500 characters."),
+  body("items")
+    .isArray({ min: 1 })
+    .withMessage(
+      "Order items array is required and must contain at least one item.",
+    )
+    .custom((items) => {
+      if (!Array.isArray(items)) {
+        return false;
+      }
+      return items.every((item: any) => {
+        return (
+          typeof item.productVariantId === "number" &&
+          item.productVariantId > 0 &&
+          typeof item.quantity === "number" &&
+          item.quantity > 0
+        );
+      });
+    })
+    .withMessage(
+      "Each item must have product variant id (positive integer), quantity (positive integer).",
+    ),
+];

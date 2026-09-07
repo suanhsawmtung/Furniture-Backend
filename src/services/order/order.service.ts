@@ -1,20 +1,38 @@
-import { OrderSource, OrderStatus, ReservationStatus } from "@prisma/client";
+import {
+  Order,
+  OrderPaymentStatus,
+  OrderSource,
+  OrderStatus,
+  ReservationStatus,
+} from "@prisma/client";
 import { prisma } from "../../lib/prisma";
-import { CursorPaginationParams, CursorPaginationResultT, ServiceResponseT } from "../../types/common";
-import { ListOrderResultT, ListOrdersParams, MyOrderT } from "../../types/order";
-import { buildOrderWhereClause, enrichOrders, findOrderRecordByCode, parseOrderQueryParams } from "./order.helpers";
+import { CursorPaginationResultT, ServiceResponseT } from "../../types/common";
+import {
+  ListOrdersParams,
+  MyOrderT,
+  PlaceOrderParams,
+} from "../../types/order";
+import {
+  buildOrderWhereClause,
+  enrichOrders,
+  findOrderRecordByCode,
+  generateOrderCode,
+  parseOrderQueryParams,
+} from "./order.helpers";
 
-import { IOrderService } from "./order.interface";
-import { createError } from "../../utils/common";
 import { errorCode } from "../../config/error-code";
 import { OrderDto } from "../../dtos/order.dto";
+import { createError } from "../../utils/common";
+import { findUserById } from "../user/user.helpers";
+import { IOrderService } from "./order.interface";
 
 export class OrderService implements IOrderService {
   async listMyOrders(
     userId: number,
-    params: ListOrdersParams
+    params: ListOrdersParams,
   ): Promise<ServiceResponseT<CursorPaginationResultT<MyOrderT>>> {
-    const { pageSize, cursor, search, condition } = parseOrderQueryParams(params);
+    const { pageSize, cursor, search, condition } =
+      parseOrderQueryParams(params);
 
     const where = buildOrderWhereClause({
       ...(search && { search }),
@@ -23,7 +41,7 @@ export class OrderService implements IOrderService {
       source: OrderSource.CUSTOMER,
     });
 
-    const [items, totalCount] = await await Promise.all([
+    const [items, totalCount] = await Promise.all([
       prisma.order.findMany({
         where,
         take: pageSize + 1,
@@ -81,7 +99,7 @@ export class OrderService implements IOrderService {
       }),
       prisma.order.count({
         where,
-      })
+      }),
     ]);
 
     let nextCursor: number | null = null;
@@ -93,7 +111,9 @@ export class OrderService implements IOrderService {
     return {
       success: true,
       data: {
-        items: (await enrichOrders(items)).map((order) => OrderDto.toOrderCard(order)),
+        items: (await enrichOrders(items)).map((order) =>
+          OrderDto.toOrderCard(order),
+        ),
         nextCursor,
         totalCount,
       },
@@ -102,7 +122,7 @@ export class OrderService implements IOrderService {
   }
 
   async cancelMyOrder(code: string, params: { cancelledReason: string }) {
-    const order = await findOrderRecordByCode(code)
+    const order = await findOrderRecordByCode(code);
 
     if (!order) {
       throw createError({
@@ -120,18 +140,22 @@ export class OrderService implements IOrderService {
       });
     }
 
-    if (!([OrderStatus.PENDING, OrderStatus.ACCEPTED] as OrderStatus[]).includes(order.status)) {
+    if (
+      !([OrderStatus.PENDING, OrderStatus.ACCEPTED] as OrderStatus[]).includes(
+        order.status,
+      )
+    ) {
       throw createError({
         message: "Order cannot be cancelled.",
         status: 400,
         code: errorCode.invalid,
       });
-    };
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       const updatedOrder = await tx.order.update({
         where: {
-          id: order.id
+          id: order.id,
         },
         data: {
           status: OrderStatus.CANCELLED,
@@ -170,6 +194,143 @@ export class OrderService implements IOrderService {
       success: true,
       data: result,
       message: "Order cancelled successfully",
+    };
+  }
+
+  async placeOrder(params: PlaceOrderParams): Promise<ServiceResponseT<Order>> {
+    const {
+      customerName,
+      customerPhone,
+      customerAddress,
+      customerNotes,
+      items,
+      imageFilename,
+      userId,
+    } = params;
+
+    if (!userId) {
+      throw createError({
+        message: "You must be logged in to create an order.",
+        status: 401,
+        code: errorCode.unauthenticated,
+      });
+    }
+
+    const orderUserId = parseInt(String(userId), 10);
+    const user = await findUserById(orderUserId);
+    if (!user) {
+      throw createError({
+        message: "User not found.",
+        status: 404,
+        code: errorCode.notFound,
+      });
+    }
+
+    if (!items || items.length === 0) {
+      throw createError({
+        message: "Order items are required and must contain at least one item.",
+        status: 400,
+        code: errorCode.invalid,
+      });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      let calculatedTotalPrice = 0;
+      const verifiedItems = [];
+
+      const variantIds = items.map((item) => Number(item.productVariantId));
+      const variants = await tx.productVariant.findMany({
+        where: { id: { in: variantIds } },
+      });
+
+      const variantMap = new Map(variants.map((v) => [v.id, v]));
+
+      for (const item of items) {
+        const itemIdNum = Number(item.productVariantId);
+        const variant = variantMap.get(itemIdNum);
+
+        if (!variant) {
+          throw createError({
+            message: `Product variant not found`,
+            status: 400,
+            code: errorCode.notFound,
+          });
+        }
+
+        const quantityNum = Number(item.quantity);
+        const priceNum =
+          Number(variant.discount) > 0
+            ? Number(variant.discount)
+            : Number(variant.price);
+
+        calculatedTotalPrice += priceNum * quantityNum;
+        verifiedItems.push({
+          itemId: itemIdNum,
+          quantity: quantityNum,
+          price: priceNum,
+        });
+      }
+
+      const order = await tx.order.create({
+        data: {
+          code: generateOrderCode(),
+          userId: orderUserId,
+          totalPrice: calculatedTotalPrice,
+          source: OrderSource.CUSTOMER,
+          status: OrderStatus.PENDING,
+          paymentStatus: OrderPaymentStatus.UNPAID,
+          customerName: customerName ? customerName.trim() : null,
+          customerPhone: customerPhone ? customerPhone.trim() : null,
+          customerAddress: customerAddress ? customerAddress.trim() : null,
+          customerNotes: customerNotes ? customerNotes.trim() : null,
+          image: imageFilename,
+          orderItems: {
+            create: verifiedItems.map((item) => ({
+              productVariantId: item.itemId,
+              quantity: item.quantity,
+              price: item.price,
+            })),
+          },
+        },
+        include: { orderItems: true },
+      });
+
+      for (const item of verifiedItems) {
+        const updated = await tx.productVariant.updateMany({
+          where: {
+            id: item.itemId,
+            stock: { gte: item.quantity },
+          },
+          data: {
+            reserved: { increment: item.quantity },
+          },
+        });
+
+        if (updated.count === 0) {
+          throw createError({
+            message: `Product variant not found or stock is not enough`,
+            status: 400,
+            code: errorCode.invalid,
+          });
+        }
+
+        await tx.reservation.create({
+          data: {
+            productVariantId: item.itemId,
+            orderId: order.id,
+            quantity: item.quantity,
+            status: ReservationStatus.ACTIVE,
+          },
+        });
+      }
+
+      return order;
+    });
+
+    return {
+      success: true,
+      data: result,
+      message: "Order created successfully.",
     };
   }
 }
